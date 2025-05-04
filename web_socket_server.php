@@ -17,6 +17,7 @@ $server = IoServer::factory(
     8080 // Change port if needed
 );
 
+// run web socket server
 echo "WebSocket server started on ws://localhost:8080\n";
 $server->run();
 

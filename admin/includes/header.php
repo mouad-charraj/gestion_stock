@@ -51,9 +51,11 @@ $page_title = "Admin Panel";
                         <a class="nav-link text-white" href="users.php">
                             <i class="fas fa-users me-1"></i> Utilisateurs
                         </a>
-                        <li class="nav-item">
-                        <a class="nav-link text-white" href="clients.php">
-                            <i class="fas fa-user me-1"></i> Clients
+                        
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="ventes.php">
+                            <i class="fas fa-shopping-bag me-1"></i> Ventes
                         </a>
                     </li>
                     <li class="nav-item">

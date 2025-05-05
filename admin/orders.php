@@ -5,23 +5,20 @@ $conn = connectDB();
 
 // Récupération des catégories
 $categories = [];
-$res = $conn->query("SELECT * FROM categories");
+$res = $conn->query("SELECT * FROM categories ORDER BY name");
 while ($row = $res->fetch_assoc()) {
     $categories[] = $row;
 }
 
 // Get current admin user ID
 $admin_id = null;
-// Option 1: If you're using sessions to track the logged-in admin
 if (isset($_SESSION['user_id'])) {
     $admin_id = $_SESSION['user_id'];
 } else {
-    // Option 2: Get the first admin user from the database
     $admin_result = $conn->query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
     if ($admin_data = $admin_result->fetch_assoc()) {
         $admin_id = $admin_data['id'];
     } else {
-        // If no admin found, you may need to create one or show an error
         die("No admin user found. Please create an admin user first.");
     }
 }
@@ -33,21 +30,35 @@ $selected_product = $_POST['product'] ?? '';
 $quantity = $_POST['quantity'] ?? '';
 
 // Traitement d'une commande fournisseur
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $selected_category && $selected_supplier && $selected_product && $quantity > 0) {
-    // Use the valid admin ID instead of 0
-    $conn->query("INSERT INTO orders (sender_id, receiver_id, sender_type, receiver_type, total_amount, status, created_at, updated_at)
-                  VALUES ($admin_id, $selected_supplier, 'admin', 'supplier', 0, 'en cours', NOW(), NOW())");
-    $order_id = $conn->insert_id;
-
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order']) && $selected_category && $selected_supplier && $selected_product && $quantity > 0) {
+    // Récupérer le prix unitaire du produit
     $res = $conn->query("SELECT price FROM products WHERE id = $selected_product");
     $price_data = $res->fetch_assoc();
     $price = $price_data['price'];
     $total = $price * $quantity;
+    
+    // Récupérer le nom du produit pour la commande
+    $res = $conn->query("SELECT name FROM products WHERE id = $selected_product");
+    $product_data = $res->fetch_assoc();
+    $product_name = $product_data['name'];
+    
+    // Insérer la commande
+    $stmt = $conn->prepare("INSERT INTO orders (name, sender_id, receiver_id, sender_type, receiver_type, total_amount, status, created_at, updated_at)
+                  VALUES (?, ?, ?, 'admin', 'supplier', ?, 'en attente', NOW(), NOW())");
+    $order_name = "Commande de " . $product_name;
+    $stmt->bind_param("siid", $order_name, $admin_id, $selected_supplier, $total);
+    $stmt->execute();
+    $order_id = $conn->insert_id;
 
-    $conn->query("INSERT INTO order_items (order_id, product_id, quantity) VALUES ($order_id, $selected_product, $quantity)");
+    // Insérer l'élément de commande
+    $stmt = $conn->prepare("INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)");
+    $stmt->bind_param("iiid", $order_id, $selected_product, $quantity, $price);
+    $stmt->execute();
 
-    $conn->query("UPDATE orders SET total_amount = $total WHERE id = $order_id");
-
+    $_SESSION['message'] = "Commande fournisseur créée avec succès.";
+    $_SESSION['message_type'] = "success";
+    
+    // Rediriger pour éviter la soumission multiple du formulaire
     header("Location: orders.php");
     exit;
 }
@@ -55,52 +66,94 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $selected_category && $selected_sup
 // Mise à jour du statut d'une commande
 if (isset($_GET['action']) && $_GET['action'] == 'update_status' && isset($_GET['order_id']) && isset($_GET['status'])) {
     $order_id = (int)$_GET['order_id'];
-    $status = $_GET['status'] === 'terminée' ? 'terminée' : 'en cours';
+    $status = $_GET['status'];
     
-    // Debug - afficher les valeurs
-    echo "<!--Debug: order_id=$order_id, status=$status-->";
-    
-    // Préparer et exécuter la requête de mise à jour
-    $stmt = $conn->prepare("UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?");
-    $stmt->bind_param("si", $status, $order_id);
-    $result = $stmt->execute();
-    
-    // Vérifier si la mise à jour a réussi
-    if ($result) {
-        $_SESSION['message'] = "Statut de la commande #$order_id mis à jour avec succès.";
-        $_SESSION['message_type'] = "success";
-    } else {
-        $_SESSION['message'] = "Erreur lors de la mise à jour du statut : " . $conn->error;
-        $_SESSION['message_type'] = "danger";
+    // Vérifier que le statut est valide
+    if (in_array($status, ['en attente', 'en cours', 'terminée', 'annulée'])) {
+        // Démarrer une transaction
+        $conn->begin_transaction();
+        
+        try {
+            // Si le statut passe à "terminée", mettre à jour le stock
+            if ($status === 'terminée') {
+                // Récupérer les articles de la commande
+                $order_items = $conn->query("
+                    SELECT oi.product_id, oi.quantity 
+                    FROM order_items oi 
+                    WHERE oi.order_id = $order_id
+                ");
+                
+                // Mettre à jour le stock pour chaque produit
+                while ($item = $order_items->fetch_assoc()) {
+                    $product_id = $item['product_id'];
+                    $quantity = $item['quantity'];
+                    
+                    // Augmenter la quantité en stock
+                    $conn->query("
+                        UPDATE products 
+                        SET quantity = quantity + $quantity 
+                        WHERE id = $product_id
+                    ");
+                    
+                    // Ajouter un mouvement de stock
+                    $conn->query("
+                        INSERT INTO stock_movements 
+                        (product_id, quantity, type, reference, created_by, created_at) 
+                        VALUES ($product_id, $quantity, 'entrée', 'Commande fournisseur #$order_id', $admin_id, NOW())
+                    ");
+                }
+            }
+            
+            // Mettre à jour le statut de la commande
+            $stmt = $conn->prepare("UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?");
+            $stmt->bind_param("si", $status, $order_id);
+            $stmt->execute();
+            
+            // Valider la transaction
+            $conn->commit();
+            
+            $_SESSION['message'] = "Statut de la commande #$order_id mis à jour avec succès.";
+            $_SESSION['message_type'] = "success";
+        } catch (Exception $e) {
+            // Annuler la transaction en cas d'erreur
+            $conn->rollback();
+            
+            $_SESSION['message'] = "Erreur lors de la mise à jour : " . $e->getMessage();
+            $_SESSION['message_type'] = "danger";
+        }
     }
     
     header("Location: orders.php");
     exit;
 }
 
-// Fournisseurs filtrés
+// Fournisseurs filtrés par catégorie
 $suppliers = [];
 if ($selected_category) {
     $res = $conn->query("SELECT DISTINCT s.id, s.name FROM suppliers s 
                          JOIN products p ON p.supplier_id = s.id 
-                         WHERE p.category_id = $selected_category");
+                         WHERE p.category_id = $selected_category
+                         ORDER BY s.name");
     while ($row = $res->fetch_assoc()) {
         $suppliers[] = $row;
     }
 }
 
-// Produits filtrés
+// Produits filtrés par catégorie et fournisseur
 $products = [];
 if ($selected_category && $selected_supplier) {
-    $res = $conn->query("SELECT * FROM products WHERE category_id = $selected_category AND supplier_id = $selected_supplier");
+    $res = $conn->query("SELECT * FROM products 
+                         WHERE category_id = $selected_category 
+                         AND supplier_id = $selected_supplier
+                         ORDER BY name");
     while ($row = $res->fetch_assoc()) {
         $products[] = $row;
     }
 }
 
-// Commandes avec informations détaillées - COMMANDES FOURNISSEURS
+// Commandes fournisseurs avec informations détaillées
 $supplier_orders = [];
-$res = $conn->query("
+$supplier_query = "
     SELECT o.*, s.name AS supplier_name, 
            p.name AS product_name, p.price AS unit_price,
            c.name AS category_name, oi.quantity
@@ -111,49 +164,12 @@ $res = $conn->query("
     JOIN categories c ON p.category_id = c.id
     WHERE o.sender_type = 'admin' AND o.receiver_type = 'supplier'
     ORDER BY o.created_at DESC
-");
-while ($row = $res->fetch_assoc()) {
-    $supplier_orders[] = $row;
-}
-
-// Commandes avec informations détaillées - COMMANDES CLIENTS
-$client_orders = [];
-// Débogage de la requête SQL des commandes clients
-$client_query = "
-    SELECT o.*, 
-           u.username AS client_name,
-           p.name AS product_name, 
-           p.price AS unit_price,
-           c.name AS category_name, 
-           oi.quantity,
-           (p.price * oi.quantity) AS line_total
-    FROM orders o
-    LEFT JOIN users u ON o.sender_id = u.id
-    JOIN order_items oi ON o.id = oi.order_id
-    JOIN products p ON oi.product_id = p.id
-    JOIN categories c ON p.category_id = c.id
-    WHERE o.sender_type = 'client' AND o.receiver_type = 'admin'
-    ORDER BY o.created_at DESC
 ";
-
-echo "<!--Debug query: $client_query-->";
-$res = $conn->query($client_query);
-
-if ($res === false) {
-    echo "<!--SQL Error: " . $conn->error . "-->";
-} else {
+$res = $conn->query($supplier_query);
+if ($res) {
     while ($row = $res->fetch_assoc()) {
-        $client_orders[] = $row;
+        $supplier_orders[] = $row;
     }
-}
-
-// Afficher un message si la requête n'a pas retourné de résultats
-if (empty($client_orders)) {
-    echo "<!--No client orders found-->";
-    // Vérifier directement dans la table des commandes
-    $check_orders = $conn->query("SELECT COUNT(*) as count FROM orders WHERE sender_type = 'client' AND receiver_type = 'admin'");
-    $order_count = $check_orders->fetch_assoc();
-    echo "<!--Raw orders count: " . $order_count['count'] . "-->";
 }
 
 // Include the header file
@@ -164,6 +180,17 @@ include '../includes/admin_header.php';
 <main class="container-fluid mt-3">
     <div class="row">
         <div class="col-12">
+            <?php if (isset($_SESSION['message'])): ?>
+            <div class="alert alert-<?= $_SESSION['message_type'] ?> alert-dismissible fade show" role="alert">
+                <?= $_SESSION['message'] ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <?php 
+                unset($_SESSION['message']);
+                unset($_SESSION['message_type']);
+            endif; 
+            ?>
+            
             <div class="card shadow mb-4">
                 <div class="card-header py-3 bg-primary">
                     <h6 class="m-0 font-weight-bold text-white">Nouvelle Commande Fournisseur</h6>
@@ -202,8 +229,8 @@ include '../includes/admin_header.php';
                             <select name="product" id="product" class="form-select">
                                 <option value="">-- Choisir un article --</option>
                                 <?php foreach ($products as $prod): ?>
-                                    <option value="<?= $prod['id'] ?>" <?= $prod['id'] == $selected_product ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($prod['name']) ?>
+                                    <option value="<?= $prod['id'] ?>">
+                                        <?= htmlspecialchars($prod['name']) ?> (<?= number_format($prod['price'], 2) ?> €)
                                     </option>
                                 <?php endforeach; ?>
                             </select>
@@ -211,78 +238,16 @@ include '../includes/admin_header.php';
 
                         <div class="col-md-2 mb-3">
                             <label for="quantity" class="form-label">Quantité</label>
-                            <input type="number" name="quantity" id="quantity" class="form-control" min="1" required>
+                            <input type="number" name="quantity" id="quantity" class="form-control" min="1" value="1" required>
                         </div>
 
                         <div class="col-md-1 mb-3 d-flex align-items-end">
-                            <button type="submit" class="btn btn-success w-100">
+                            <button type="submit" name="submit_order" class="btn btn-success w-100">
                                 <i class="fas fa-plus-circle"></i>
                             </button>
                         </div>
                         <?php endif; ?>
                     </form>
-                </div>
-            </div>
-
-            <!-- Commandes clients -->
-            <div class="card shadow mb-4">
-                <div class="card-header py-3 bg-success">
-                    <h6 class="m-0 font-weight-bold text-white">Commandes Clients</h6>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover table-striped mb-0">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Client</th>
-                                    <th>Catégorie</th>
-                                    <th>Article</th>
-                                    <th>Quantité</th>
-                                    <th>Prix unitaire</th>
-                                    <th>Montant total</th>
-                                    <th>Statut</th>
-                                    <th>Date</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($client_orders as $order): ?>
-                                    <tr>
-                                        <td><?= $order['id'] ?></td>
-                                        <td><?= htmlspecialchars($order['client_name'] ?? 'Client #'.$order['sender_id']) ?></td>
-                                        <td><?= htmlspecialchars($order['category_name']) ?></td>
-                                        <td><?= htmlspecialchars($order['product_name']) ?></td>
-                                        <td><?= $order['quantity'] ?></td>
-                                        <td><?= number_format($order['unit_price'], 2) ?> €</td>
-                                        <td><?= number_format($order['total_amount'], 2) ?> €</td>
-                                        <td>
-                                            <span class="badge <?= $order['status'] === 'terminée' ? 'bg-success' : 'bg-warning text-dark' ?>">
-                                                <?= ucfirst($order['status']) ?>
-                                            </span>
-                                        </td>
-                                        <td><?= date('d/m/Y H:i', strtotime($order['created_at'])) ?></td>
-                                        <td>
-                                            <?php if ($order['status'] !== 'terminée'): ?>
-                                                <a href="?action=update_status&order_id=<?= $order['id'] ?>&status=terminée" class="btn btn-sm btn-success">
-                                                    Marquer terminée
-                                                </a>
-                                            <?php else: ?>
-                                                <a href="?action=update_status&order_id=<?= $order['id'] ?>&status=en_cours" class="btn btn-sm btn-warning">
-                                                    Marquer en cours
-                                                </a>
-                                            <?php endif; ?>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                                <?php if (empty($client_orders)): ?>
-                                    <tr>
-                                        <td colspan="10" class="text-center">Aucune commande client trouvée</td>
-                                    </tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
                 </div>
             </div>
 
@@ -309,7 +274,13 @@ include '../includes/admin_header.php';
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($supplier_orders as $order): ?>
+                                <?php 
+                                $has_active_orders = false;
+                                foreach ($supplier_orders as $order): 
+                                    // N'affichez pas les commandes terminées dans ce tableau
+                                    if ($order['status'] === 'terminée') continue;
+                                    $has_active_orders = true;
+                                ?>
                                     <tr>
                                         <td><?= $order['id'] ?></td>
                                         <td><?= htmlspecialchars($order['supplier_name']) ?></td>
@@ -319,27 +290,101 @@ include '../includes/admin_header.php';
                                         <td><?= number_format($order['unit_price'], 2) ?> €</td>
                                         <td><?= number_format($order['total_amount'], 2) ?> €</td>
                                         <td>
-                                            <span class="badge <?= $order['status'] === 'terminée' ? 'bg-success' : 'bg-warning text-dark' ?>">
+                                            <?php
+                                            $badge_class = 'bg-warning text-dark';
+                                            if ($order['status'] === 'en attente') {
+                                                $badge_class = 'bg-info text-dark';
+                                            } elseif ($order['status'] === 'annulée') {
+                                                $badge_class = 'bg-danger';
+                                            }
+                                            ?>
+                                            <span class="badge <?= $badge_class ?>">
                                                 <?= ucfirst($order['status']) ?>
                                             </span>
                                         </td>
                                         <td><?= date('d/m/Y H:i', strtotime($order['created_at'])) ?></td>
                                         <td>
-                                            <?php if ($order['status'] !== 'terminée'): ?>
+                                            <?php if ($order['status'] === 'en attente'): ?>
+                                                <div class="btn-group">
+                                                    <a href="?action=update_status&order_id=<?= $order['id'] ?>&status=en cours" class="btn btn-sm btn-primary">
+                                                        Marquer en cours
+                                                    </a>
+                                                    <a href="?action=update_status&order_id=<?= $order['id'] ?>&status=terminée" class="btn btn-sm btn-success">
+                                                        Marquer terminée
+                                                    </a>
+                                                </div>
+                                            <?php elseif ($order['status'] === 'en cours'): ?>
                                                 <a href="?action=update_status&order_id=<?= $order['id'] ?>&status=terminée" class="btn btn-sm btn-success">
                                                     Marquer terminée
                                                 </a>
-                                            <?php else: ?>
-                                                <a href="?action=update_status&order_id=<?= $order['id'] ?>&status=en_cours" class="btn btn-sm btn-warning">
-                                                    Marquer en cours
+                                            <?php endif; ?>
+                                            
+                                            <?php if ($order['status'] !== 'annulée'): ?>
+                                                <a href="?action=update_status&order_id=<?= $order['id'] ?>&status=annulée" class="btn btn-sm btn-danger">
+                                                    Annuler
                                                 </a>
                                             <?php endif; ?>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
-                                <?php if (empty($supplier_orders)): ?>
+                                <?php if (!$has_active_orders): ?>
                                     <tr>
-                                        <td colspan="10" class="text-center">Aucune commande fournisseur trouvée</td>
+                                        <td colspan="10" class="text-center">Aucune commande active trouvée</td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Commandes terminées -->
+            <div class="card shadow mt-4">
+                <div class="card-header py-3 bg-success text-white">
+                    <h6 class="m-0 font-weight-bold">Commandes Terminées</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fournisseur</th>
+                                    <th>Catégorie</th>
+                                    <th>Article</th>
+                                    <th>Quantité</th>
+                                    <th>Prix unitaire</th>
+                                    <th>Montant total</th>
+                                    <th>Statut</th>
+                                    <th>Date terminée</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php 
+                                $has_completed_orders = false;
+                                foreach ($supplier_orders as $order): 
+                                    if ($order['status'] !== 'terminée') continue;
+                                    $has_completed_orders = true;
+                                ?>
+                                    <tr>
+                                        <td><?= $order['id'] ?></td>
+                                        <td><?= htmlspecialchars($order['supplier_name']) ?></td>
+                                        <td><?= htmlspecialchars($order['category_name']) ?></td>
+                                        <td><?= htmlspecialchars($order['product_name']) ?></td>
+                                        <td><?= $order['quantity'] ?></td>
+                                        <td><?= number_format($order['unit_price'], 2) ?> €</td>
+                                        <td><?= number_format($order['total_amount'], 2) ?> €</td>
+                                        <td>
+                                            <span class="badge bg-success">
+                                                Terminée
+                                            </span>
+                                        </td>
+                                        <td><?= date('d/m/Y H:i', strtotime($order['updated_at'])) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                                <?php if (!$has_completed_orders): ?>
+                                    <tr>
+                                        <td colspan="9" class="text-center">Aucune commande terminée trouvée</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>
@@ -350,5 +395,27 @@ include '../includes/admin_header.php';
         </div>
     </div>
 </main>
+
+<script>
+// Script pour éviter la soumission du formulaire lors du changement de catégorie ou fournisseur
+document.addEventListener('DOMContentLoaded', function() {
+    // Réinitialiser les sélections après soumission du formulaire
+    const form = document.querySelector('form');
+    const submitBtn = document.querySelector('button[name="submit_order"]');
+    
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function() {
+            // Ajouter une validation côté client
+            const product = document.getElementById('product').value;
+            const quantity = document.getElementById('quantity').value;
+            
+            if (!product || quantity < 1) {
+                alert('Veuillez sélectionner un article et indiquer une quantité valide.');
+                return false;
+            }
+        });
+    }
+});
+</script>
 </body>
 </html>

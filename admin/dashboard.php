@@ -63,6 +63,98 @@ include '../includes/admin_header.php';
             <p>Bienvenue, <?php echo htmlspecialchars($_SESSION['username']); ?>!</p>
         </div>
     </div>
+
+<?php
+// Requête pour les produits en stock critique
+$low_stock_query = "SELECT name, quantity FROM products WHERE quantity <= min_quantity";
+$low_stock_products = $conn->query($low_stock_query);
+?>
+
+
+<?php
+// Requête pour les articles en stock critique
+$low_stock_query = "SELECT name, quantity FROM products WHERE quantity <= min_quantity";
+$low_stock_products = $conn->query($low_stock_query);
+?>
+
+<?php if ($low_stock_products && $low_stock_products->num_rows > 0): ?>
+    <div class="overlay" id="overlay"></div>
+    <div class="stock-alert" id="stockAlert">
+        <div class="triangle-icon">&#9888;</div>
+        <h3>Stock critique détecté</h3>
+        <ul>
+            <?php while ($product = $low_stock_products->fetch_assoc()): ?>
+                <li><?= htmlspecialchars($product['name']) ?> (Quantité: <?= $product['quantity'] ?>)</li>
+            <?php endwhile; ?>
+        </ul>
+        <button class="close-btn" onclick="closeAlert()">Fermer</button>
+    </div>
+
+    <style>
+        .stock-alert {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff3cd;
+            color:rgb(133, 4, 4);
+            border: 2px solid #ffeeba;
+            padding: 20px 30px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 500px;
+            font-family: Arial, sans-serif;
+        }
+
+        .triangle-icon {
+            font-size: 40px;
+            color:rgb(255, 7, 7);
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+            z-index: 999;
+            display: none;
+        }
+
+        .close-btn {
+            margin-top: 15px;
+            padding: 5px 15px;
+            background-color:rgb(255, 7, 7);
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .close-btn:hover {
+            background-color:rgb(224, 0, 0);
+        }
+    </style>
+    <script>
+        window.onload = function() {
+            document.getElementById("stockAlert").style.display = "block";
+            document.getElementById("overlay").style.display = "block";
+        };
+
+        function closeAlert() {
+            document.getElementById("stockAlert").style.display = "none";
+            document.getElementById("overlay").style.display = "none";
+        }
+    </script>
+<?php endif; ?>
+
+
+
+
     
     <!-- Stats Cards -->
     <div class="row mt-4">

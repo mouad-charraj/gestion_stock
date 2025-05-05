@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS products (
 -- Table des commandes
 CREATE TABLE IF NOT EXISTS orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name char not null,
+    name VARCHAR(255) not null,
     sender_id INT NOT NULL,  -- Peut être un user ou admin
     receiver_id INT NOT NULL,  -- Peut être un admin ou un fournisseur
     sender_type ENUM('user', 'admin') NOT NULL,

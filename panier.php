@@ -64,8 +64,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         // Créer la commande dans la table orders
-        $status = "en cours";
-        $sender_type = "client";
+        $status = "confirmée";  // Statut plus approprié pour une commande validée
+        $sender_type = "user";   // Doit correspondre au filtre dans ventes.php
         $receiver_type = "admin";
         
         // Debug - afficher des informations
@@ -87,13 +87,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // Ajouter les éléments de la commande
+        // Ajouter les éléments de la commande avec les prix
         foreach ($cart as $id => $item) {
             $qty = $item['quantity'];
             
-            // Insérer dans order_items
-            $stmt = $conn->prepare("INSERT INTO order_items (order_id, product_id, quantity) VALUES (?, ?, ?)");
-            $stmt->bind_param("iii", $order_id, $id, $qty);
+            // Récupérer le prix actuel du produit
+            $stmt = $conn->prepare("SELECT price FROM products WHERE id = ?");
+            $stmt->bind_param("i", $id);
+            $stmt->execute();
+            $product = $stmt->get_result()->fetch_assoc();
+            $current_price = $product['price'];
+            
+            // Insérer dans order_items avec le prix
+            $stmt = $conn->prepare("INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)");
+            $stmt->bind_param("iiid", $order_id, $id, $qty, $current_price);
             
             if (!$stmt->execute()) {
                 echo "Erreur lors de l'ajout des articles: " . $stmt->error;

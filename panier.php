@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Calculer le montant total de la commande
         $total_amount = 0;
         foreach ($cart as $id => $item) {
-            $stmt = $conn->prepare("SELECT price FROM products WHERE id = ?");
+            $stmt = $conn->prepare("SELECT price, quantity FROM products WHERE id = ?");
             $stmt->bind_param("i", $id);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $qty = $item['quantity'];
             
             // Récupérer le prix actuel du produit
-            $stmt = $conn->prepare("SELECT price FROM products WHERE id = ?");
+            $stmt = $conn->prepare("SELECT price, quantity FROM products WHERE id = ?");
             $stmt->bind_param("i", $id);
             $stmt->execute();
             $product = $stmt->get_result()->fetch_assoc();
@@ -127,7 +127,7 @@ include 'includes/user_header.php';
 ?>
 
 <div class="container mt-5">
-    <h2>Mon panier</h2>
+    
 
     <?php if (!empty($message)): ?>
         <div class="alert alert-<?= htmlspecialchars($message_type) ?>"><?= htmlspecialchars($message) ?></div>
@@ -137,12 +137,13 @@ include 'includes/user_header.php';
     <?php if (empty($cart)): ?>
         <div class="alert alert-info">Votre panier est vide.</div>
     <?php else: ?>
-        <form method="POST" id="cart-form">
-            <ul class="list-group mb-3" id="cart-items">
+        <form method="POST" id="cart-form" class="shadow rounded p-4 bg-white">
+            <h3 class="mb-4 border-bottom pb-3 text-primary">Votre panier</h3>
+            <ul class="list-group mb-4 shadow-sm" id="cart-items">
                 <?php foreach ($cart as $id => $item): ?>
                     <?php 
                     // Récupération des infos produit
-                    $stmt = $conn->prepare("SELECT name, price FROM products WHERE id = ?");
+                    $stmt = $conn->prepare("SELECT name, price, quantity FROM products WHERE id = ?");
                     $stmt->bind_param("i", $id);
                     $stmt->execute();
                     $product = $stmt->get_result()->fetch_assoc();
@@ -152,29 +153,48 @@ include 'includes/user_header.php';
                     $line_total = $unit_price * $item['quantity'];
                     $total += $line_total;
                     ?>
-                    <li class="list-group-item d-flex justify-content-between align-items-center" data-unit-price="<?= $unit_price ?>">
-                        <div>
-                            <?= htmlspecialchars($product['name']) ?>
-                            <input
-                                type="number"
-                                name="quantities[<?= $id ?>]"
-                                value="<?= $item['quantity'] ?>"
-                                min="1"
-                                class="form-control d-inline-block quantity-input"
-                                style="width: 70px; margin-left: 10px;"
-                            >
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-3" data-unit-price="<?= $unit_price ?>">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                <span class="fw-bold"><?= htmlspecialchars($product['name']) ?></span>
+                                <small class="text-muted d-block">Prix unitaire: <?= number_format($unit_price, 2) ?> €</small>
+                            </div>
+                            <div class="input-group input-group-sm" style="width: 120px;">
+                                <span class="input-group-text bg-light">Qté</span>
+                                <input
+                                    type="number"
+                                    name="quantities[<?= $id ?>]"
+                                    value="<?= $item['quantity'] ?>"
+                                    min="1"
+                                    max="<?= $product['quantity'] ?>"
+                                    class="form-control quantity-input"
+                                >
+                            </div>
                         </div>
-                        <span class="line-total"><?= number_format($line_total, 2) ?> €</span>
+                        <span class="line-total badge bg-primary rounded-pill fs-6"><?= number_format($line_total, 2) ?> €</span>
                     </li>
                 <?php endforeach; ?>
             </ul>
 
-            <h4>Total : <span id="grand-total"><?= number_format($total, 2) ?> €</span></h4>
+            <div class="card mb-4 shadow-sm">
+                <div class="card-body bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">Total</h4>
+                        <h4 class="mb-0 text-primary fw-bold" id="grand-total"><?= number_format($total, 2) ?> €</h4>
+                    </div>
+                </div>
+            </div>
 
-            <div class="btn-group" role="group">
-                <button type="submit" name="update_cart" class="btn btn-primary">Mettre à jour le panier</button>
-                <button type="submit" name="clear_cart" class="btn btn-warning">Vider le panier</button>
-                <button type="submit" name="submit_order" class="btn btn-success">Soumettre la commande</button>
+            <div class="d-flex justify-content-between gap-2">
+                <button type="submit" name="update_cart" class="btn btn-outline-primary">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Mettre à jour
+                </button>
+                <button type="submit" name="clear_cart" class="btn btn-outline-danger">
+                    <i class="bi bi-trash me-1"></i> Vider le panier
+                </button>
+                <button type="submit" name="submit_order" class="btn btn-success">
+                    <i class="bi bi-check-circle me-1"></i> Commander
+                </button>
             </div>
         </form>
 

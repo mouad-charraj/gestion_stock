@@ -34,8 +34,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order']) && $s
     // Récupérer le prix unitaire du produit
     $res = $conn->query("SELECT price FROM products WHERE id = $selected_product");
     $price_data = $res->fetch_assoc();
-    $price = $price_data['price'];
-    $total = $price * $quantity;
+    $selling_price = $price_data['price'];
+    
+    // Calculer le prix d'achat (80% du prix de vente)
+    $purchase_price = $selling_price * 0.8;
+    $total = $purchase_price * $quantity;
     
     // Récupérer le nom du produit pour la commande
     $res = $conn->query("SELECT name FROM products WHERE id = $selected_product");
@@ -52,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order']) && $s
 
     // Insérer l'élément de commande
     $stmt = $conn->prepare("INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)");
-    $stmt->bind_param("iiid", $order_id, $selected_product, $quantity, $price);
+    $stmt->bind_param("iiid", $order_id, $selected_product, $quantity, $purchase_price);
     $stmt->execute();
 
     $_SESSION['message'] = "Commande fournisseur créée avec succès.";
@@ -155,7 +158,7 @@ if ($selected_category && $selected_supplier) {
 $supplier_orders = [];
 $supplier_query = "
     SELECT o.*, s.name AS supplier_name, 
-           p.name AS product_name, p.price AS unit_price,
+           p.name AS product_name, p.price AS selling_price, oi.price AS purchase_price,
            c.name AS category_name, oi.quantity
     FROM orders o
     JOIN suppliers s ON o.receiver_id = s.id
@@ -230,7 +233,9 @@ include '../includes/admin_header.php';
                                 <option value="">-- Choisir un article --</option>
                                 <?php foreach ($products as $prod): ?>
                                     <option value="<?= $prod['id'] ?>">
-                                        <?= htmlspecialchars($prod['name']) ?> (<?= number_format($prod['price'], 2) ?> €)
+                                        <?= htmlspecialchars($prod['name']) ?> 
+                                        (Vente: <?= number_format($prod['price'], 2) ?> € | 
+                                        Achat: <?= number_format($prod['price'] * 0.8, 2) ?> €)
                                     </option>
                                 <?php endforeach; ?>
                             </select>
@@ -266,7 +271,8 @@ include '../includes/admin_header.php';
                                     <th>Catégorie</th>
                                     <th>Article</th>
                                     <th>Quantité</th>
-                                    <th>Prix unitaire</th>
+                                    <th>Prix vente</th>
+                                    <th>Prix achat</th>
                                     <th>Montant total</th>
                                     <th>Statut</th>
                                     <th>Date</th>
@@ -287,7 +293,8 @@ include '../includes/admin_header.php';
                                         <td><?= htmlspecialchars($order['category_name']) ?></td>
                                         <td><?= htmlspecialchars($order['product_name']) ?></td>
                                         <td><?= $order['quantity'] ?></td>
-                                        <td><?= number_format($order['unit_price'], 2) ?> €</td>
+                                        <td><?= number_format($order['selling_price'], 2) ?> €</td>
+                                        <td><?= number_format($order['purchase_price'], 2) ?> €</td>
                                         <td><?= number_format($order['total_amount'], 2) ?> €</td>
                                         <td>
                                             <?php
@@ -329,7 +336,7 @@ include '../includes/admin_header.php';
                                 <?php endforeach; ?>
                                 <?php if (!$has_active_orders): ?>
                                     <tr>
-                                        <td colspan="10" class="text-center">Aucune commande active trouvée</td>
+                                        <td colspan="11" class="text-center">Aucune commande active trouvée</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>
@@ -353,7 +360,8 @@ include '../includes/admin_header.php';
                                     <th>Catégorie</th>
                                     <th>Article</th>
                                     <th>Quantité</th>
-                                    <th>Prix unitaire</th>
+                                    <th>Prix vente</th>
+                                    <th>Prix achat</th>
                                     <th>Montant total</th>
                                     <th>Statut</th>
                                     <th>Date terminée</th>
@@ -372,7 +380,8 @@ include '../includes/admin_header.php';
                                         <td><?= htmlspecialchars($order['category_name']) ?></td>
                                         <td><?= htmlspecialchars($order['product_name']) ?></td>
                                         <td><?= $order['quantity'] ?></td>
-                                        <td><?= number_format($order['unit_price'], 2) ?> €</td>
+                                        <td><?= number_format($order['selling_price'], 2) ?> €</td>
+                                        <td><?= number_format($order['purchase_price'], 2) ?> €</td>
                                         <td><?= number_format($order['total_amount'], 2) ?> €</td>
                                         <td>
                                             <span class="badge bg-success">
@@ -384,7 +393,7 @@ include '../includes/admin_header.php';
                                 <?php endforeach; ?>
                                 <?php if (!$has_completed_orders): ?>
                                     <tr>
-                                        <td colspan="9" class="text-center">Aucune commande terminée trouvée</td>
+                                        <td colspan="10" class="text-center">Aucune commande terminée trouvée</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>

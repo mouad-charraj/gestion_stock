@@ -1,224 +1,171 @@
 <?php
-require_once '../config.php';
-require_once '../vendor/autoload.php';
+require '../config.php';
 $conn = connectDB();
 
-// Vérifier si admin
-if ($_SESSION['user_role'] !== 'admin') {
-    header("Location: ../login.php");
-    exit;
+function getValue($conn, $query) {
+    $res = $conn->query($query);
+    $row = $res->fetch_assoc();
+    return $row ? $row['total'] : 0;
 }
 
-// Détection du format demandé
-$format = $_GET['format'] ?? 'html';
-
-// 1. Récupérer toutes les données nécessaires
-$data = [
-    'stock' => getStockData($conn),
-    'movements' => getMovementData($conn),
-    'supplier_orders' => getSupplierOrders($conn),
-    'customer_orders' => getCustomerOrders($conn),
-    'stats' => getStatistics($conn)
-];
-
-// Fonctions pour récupérer les données adaptées à votre schéma
-function getStockData($conn) {
-    $query = "SELECT p.id, p.name, c.name as category, 
-              s.name as supplier, p.quantity, p.min_quantity,
-              p.price as sale_price,
-              CASE 
-                WHEN p.quantity <= 0 THEN 'Rupture'
-                WHEN p.quantity < p.min_quantity THEN 'Stock faible'
-                ELSE 'OK'
-              END as status
-              FROM products p
-              LEFT JOIN categories c ON p.category_id = c.id
-              LEFT JOIN suppliers s ON p.supplier_id = s.id
-              ORDER BY status, p.quantity";
-    return $conn->query($query)->fetch_all(MYSQLI_ASSOC);
+function getTopProducts($conn) {
+    return $conn->query("SELECT p.name, SUM(oi.quantity) AS total_qte FROM order_items oi JOIN products p ON oi.product_id = p.id GROUP BY oi.product_id ORDER BY total_qte DESC LIMIT 10");
 }
 
-function getMovementData($conn) {
-    $query = "SELECT sm.id, p.name as product, sm.quantity, 
-              sm.type, u.username as user, sm.created_at,
-              sm.reference, sm.notes
-              FROM stock_movements sm
-              JOIN products p ON sm.product_id = p.id
-              JOIN users u ON sm.created_by = u.id
-              ORDER BY sm.created_at DESC
-              LIMIT 100";
-    return $conn->query($query)->fetch_all(MYSQLI_ASSOC);
+function getStockStatus($conn) {
+    return $conn->query("SELECT name, quantity, min_quantity FROM products ORDER BY name ASC");
+}
+
+function getClientOrders($conn) {
+    return $conn->query("SELECT * FROM orders WHERE sender_type='user' AND receiver_type='admin'");
 }
 
 function getSupplierOrders($conn) {
-    $query = "SELECT o.id, s.name as supplier, 
-              SUM(oi.quantity) as total_quantity,
-              SUM(oi.quantity * oi.price) as total_amount,
-              o.status, o.created_at, o.updated_at
-              FROM orders o
-              JOIN suppliers s ON o.receiver_id = s.user_id
-              JOIN order_items oi ON o.id = oi.order_id
-              WHERE o.receiver_type = 'supplier'
-              AND o.sender_type = 'admin'
-              GROUP BY o.id
-              ORDER BY o.created_at DESC";
-    return $conn->query($query)->fetch_all(MYSQLI_ASSOC);
+    return $conn->query("SELECT * FROM orders WHERE sender_type='admin' AND receiver_type='supplier'");
 }
 
-function getCustomerOrders($conn) {
-    $query = "SELECT o.id, u.username as customer, 
-              SUM(oi.quantity) as total_quantity,
-              SUM(oi.quantity * oi.price) as total_amount,
-              o.status, o.created_at
-              FROM orders o
-              JOIN users u ON o.sender_id = u.id
-              JOIN order_items oi ON o.id = oi.order_id
-              WHERE o.receiver_type = 'admin'
-              AND o.sender_type = 'user'
-              GROUP BY o.id
-              ORDER BY o.created_at DESC";
-    return $conn->query($query)->fetch_all(MYSQLI_ASSOC);
-}
-
-function getStatistics($conn) {
-    $query = "SELECT 
-        (SELECT SUM(oi.quantity * oi.price) 
-         FROM orders o JOIN order_items oi ON o.id = oi.order_id
-         WHERE o.receiver_type = 'admin' AND o.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)) as revenue,
-        
-        (SELECT SUM(oi.quantity * oi.price) 
-         FROM orders o JOIN order_items oi ON o.id = oi.order_id
-         WHERE o.receiver_type = 'supplier' AND o.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)) as expenses,
-         
-        (SELECT COUNT(DISTINCT o.sender_id)
-         FROM orders o 
-         WHERE o.receiver_type = 'admin' AND o.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)) as customers,
-         
-        (SELECT COUNT(*) FROM products WHERE quantity < min_quantity) as low_stock";
-    
-    return $conn->query($query)->fetch_assoc();
-}
-
-// Génération Excel (adaptée)
-function generateExcelReport($data) {
-    $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-    $sheet = $spreadsheet->getActiveSheet();
-    
-    // Titre
-    $sheet->setCellValue('A1', 'Rapport de stock - ' . date('d/m/Y'));
-    $sheet->mergeCells('A1:G1');
-    
-    // État des stocks
-    $sheet->setCellValue('A3', 'État des stocks');
-    $sheet->fromArray([
-        ['ID', 'Produit', 'Catégorie', 'Fournisseur', 'Quantité', 'Stock min', 'Prix', 'Statut']
-    ], null, 'A4');
-    
-    $row = 5;
-    foreach ($data['stock'] as $item) {
-        $sheet->fromArray([
-            $item['id'],
-            $item['name'],
-            $item['category'],
-            $item['supplier'],
-            $item['quantity'],
-            $item['min_quantity'],
-            $item['sale_price'],
-            $item['status']
-        ], null, 'A'.$row);
-        $row++;
-    }
-    
-    // Mouvements de stock
-    $sheet->setCellValue('A'.($row+2), 'Mouvements récents');
-    $sheet->fromArray([
-        ['ID', 'Produit', 'Quantité', 'Type', 'Utilisateur', 'Date']
-    ], null, 'A'.($row+3));
-    
-    $row += 4;
-    foreach ($data['movements'] as $movement) {
-        $sheet->fromArray([
-            $movement['id'],
-            $movement['product'],
-            $movement['quantity'],
-            $movement['type'],
-            $movement['user'],
-            $movement['created_at']
-        ], null, 'A'.$row);
-        $row++;
-    }
-    
-    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    header('Content-Disposition: attachment;filename="rapport_stock.xlsx"');
-    $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
-    $writer->save('php://output');
-    exit;
-}
-
-// Génération PDF (adaptée)
-function generatePdfReport($data) {
-    $html = '<h1>Rapport de stock</h1>';
-    $html .= '<h2>État des stocks</h2>';
-    $html .= generateHtmlTable($data['stock'], ['ID', 'Produit', 'Catégorie', 'Fournisseur', 'Quantité', 'Stock min', 'Prix', 'Statut']);
-    
-    $html .= '<h2>Mouvements récents</h2>';
-    $html .= generateHtmlTable($data['movements'], ['ID', 'Produit', 'Quantité', 'Type', 'Utilisateur', 'Date']);
-    
-    $html .= '<h2>Statistiques</h2>';
-    $html .= '<p>Revenus (30j): ' . number_format($data['stats']['revenue'], 2) . ' €</p>';
-    $html .= '<p>Dépenses (30j): ' . number_format($data['stats']['expenses'], 2) . ' €</p>';
-    
-    $dompdf = new \Dompdf\Dompdf();
-    $dompdf->loadHtml($html);
-    $dompdf->setPaper('A4', 'landscape');
-    $dompdf->render();
-    
-    header('Content-Type: application/pdf');
-    header('Content-Disposition: attachment;filename="rapport_stock.pdf"');
-    echo $dompdf->output();
-    exit;
-}
-
-function generateHtmlTable($data, $headers) {
-    $html = '<table border="1"><tr>';
-    foreach ($headers as $header) {
-        $html .= '<th>'.$header.'</th>';
-    }
-    $html .= '</tr>';
-    
-    foreach ($data as $row) {
-        $html .= '<tr>';
-        foreach ($row as $cell) {
-            $html .= '<td>'.htmlspecialchars($cell).'</td>';
+$revenus = getValue($conn, "SELECT SUM(total_amount) AS total FROM orders WHERE sender_type='user'");
+$depenses = getValue($conn, "SELECT SUM(total_amount) AS total FROM orders WHERE receiver_type='supplier'");
+$benefice = $revenus - $depenses;
+$topProducts = getTopProducts($conn);
+$stockStatus = getStockStatus($conn);
+$clientOrders = getClientOrders($conn);
+$supplierOrders = getSupplierOrders($conn);
+?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Rapport Complet</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
         }
-        $html .= '</tr>';
-    }
-    
-    $html .= '</table>';
-    return $html;
-}
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            max-width: 1000px;
+            margin: auto;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #007BFF;
+            color: white;
+        }
+        .stat-box {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .box {
+            flex: 1;
+            background: #e3f2fd;
+            margin: 0 10px;
+            padding: 15px;
+            border-left: 5px solid #2196F3;
+            border-radius: 4px;
+        }
+        .export-buttons {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .export-buttons a {
+            text-decoration: none;
+            background-color: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin: 0 10px;
+        }
+        .export-buttons a.pdf {
+            background-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Rapport Complet des Transactions</h1>
 
-// Affichage selon le format
-switch ($format) {
-    case 'excel':
-        generateExcelReport($data);
-        break;
-    case 'pdf':
-        generatePdfReport($data);
-        break;
-    default:
-        echo '<h1>Rapport de stock</h1>';
-        echo '<a href="?format=excel">Export Excel</a> | ';
-        echo '<a href="?format=pdf">Export PDF</a>';
-        
-        echo '<h2>État des stocks</h2>';
-        echo generateHtmlTable($data['stock'], ['ID', 'Produit', 'Catégorie', 'Fournisseur', 'Quantité', 'Stock min', 'Prix', 'Statut']);
-        
-        echo '<h2>Mouvements récents</h2>';
-        echo generateHtmlTable($data['movements'], ['ID', 'Produit', 'Quantité', 'Type', 'Utilisateur', 'Date']);
-        
-        echo '<h2>Statistiques</h2>';
-        echo '<p>Revenus (30j): ' . number_format($data['stats']['revenue'], 2) . ' €</p>';
-        echo '<p>Dépenses (30j): ' . number_format($data['stats']['expenses'], 2) . ' €</p>';
-        break;
-}
+    <div class="export-buttons">
+        <a href="rapport_pdf.php" class="pdf">📄 Exporter en PDF</a>
+        <a href="rapport_excel.php" class="excel">📊 Exporter en Excel</a>
+    </div>
+
+    <div class="stat-box">
+        <div class="box"><strong>Revenus Totaux:</strong> <?= number_format($revenus, 2) ?> €</div>
+        <div class="box"><strong>Dépenses Totales:</strong> <?= number_format($depenses, 2) ?> €</div>
+        <div class="box"><strong>Bénéfice:</strong> <?= number_format($benefice, 2) ?> €</div>
+    </div>
+
+    <h2>Commandes Clients (Utilisateur → Admin)</h2>
+    <table>
+        <tr><th>ID</th><th>Nom</th><th>Montant Total</th><th>Status</th><th>Date</th></tr>
+        <?php while($row = $clientOrders->fetch_assoc()): ?>
+            <tr>
+                <td><?= $row['id'] ?></td>
+                <td><?= $row['name'] ?></td>
+                <td><?= number_format($row['total_amount'], 2) ?>€</td>
+                <td><?= $row['status'] ?></td>
+                <td><?= $row['created_at'] ?></td>
+            </tr>
+        <?php endwhile; ?>
+    </table>
+
+    <h2>Commandes Fournisseurs (Admin → Fournisseur)</h2>
+    <table>
+        <tr><th>ID</th><th>Nom</th><th>Montant Total</th><th>Status</th><th>Date</th></tr>
+        <?php while($row = $supplierOrders->fetch_assoc()): ?>
+            <tr>
+                <td><?= $row['id'] ?></td>
+                <td><?= $row['name'] ?></td>
+                <td><?= number_format($row['total_amount'], 2) ?>€</td>
+                <td><?= $row['status'] ?></td>
+                <td><?= $row['created_at'] ?></td>
+            </tr>
+        <?php endwhile; ?>
+    </table>
+
+    <h2>Top 10 des Produits Vendus</h2>
+    <table>
+        <thead>
+            <tr><th>Produit</th><th>Quantité Vendue</th></tr>
+        </thead>
+        <tbody>
+        <?php while ($row = $topProducts->fetch_assoc()): ?>
+            <tr><td><?= $row['name'] ?></td><td><?= $row['total_qte'] ?></td></tr>
+        <?php endwhile; ?>
+        </tbody>
+    </table>
+
+    <h2>État des Stocks</h2>
+    <table>
+        <thead>
+            <tr><th>Produit</th><th>Quantité Actuelle</th><th>Quantité Minimale</th><th>Statut</th></tr>
+        </thead>
+        <tbody>
+        <?php while ($row = $stockStatus->fetch_assoc()): 
+            $statut = ($row['quantity'] <= $row['min_quantity']) ? 'Stock faible' : 'OK'; ?>
+            <tr><td><?= $row['name'] ?></td><td><?= $row['quantity'] ?></td><td><?= $row['min_quantity'] ?></td><td><?= $statut ?></td></tr>
+        <?php endwhile; ?>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

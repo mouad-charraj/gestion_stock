@@ -1,6 +1,14 @@
 <?php
 session_start();
 require_once 'config.php';
+require_once './vendor/autoload.php';
+require './productNotifier.php';
+require_once './websocket_helper.php';
+
+use Ratchet\Server\IoServer;
+use Ratchet\Http\HttpServer;
+use Ratchet\WebSocket\WsServer;
+
 $conn = connectDB();
 
 // Structure du panier : [id => ['quantity' => qty, 'price' => price], ...]
@@ -86,13 +94,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo "Erreur: ID de commande invalide.";
             exit;
         }
+        $products = [];
 
         // Ajouter les éléments de la commande avec les prix
         foreach ($cart as $id => $item) {
             $qty = $item['quantity'];
             
             // Récupérer le prix actuel du produit
-            $stmt = $conn->prepare("SELECT price, quantity FROM products WHERE id = ?");
+            $stmt = $conn->prepare("SELECT price, quantity, min_quantity FROM products WHERE id = ?");
             $stmt->bind_param("i", $id);
             $stmt->execute();
             $product = $stmt->get_result()->fetch_assoc();
@@ -111,6 +120,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $conn->prepare("UPDATE products SET quantity = quantity - ? WHERE id = ?");
             $stmt->bind_param("ii", $qty, $id);
             $stmt->execute();
+            array_push($products, [
+                'productId' => $id,
+                'quantity' => $qty,
+                'min_quantity' => $product['min_quantity']
+            ]);
         }
 
         // Vider le panier après la commande
@@ -118,6 +132,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['cart_count'] = 0;
         $_SESSION['message'] = "Commande #" . $order_id . " passée avec succès.";
         $_SESSION['message_type'] = "success";
+        $message = json_encode([
+            'type' => 'product_buyed',
+            'content' => $products
+        ]);
+        notifyClients($message);
         header('Location: panier.php');
         exit;
     }

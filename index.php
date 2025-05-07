@@ -114,9 +114,12 @@ include 'includes/user_header.php';
               <div class="mt-auto">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                   <span class="h4 text-primary" id="product-price"><?= number_format($product['price'], 2) ?> €</span>
-                  <span id="product-quantity" class="badge bg-<?= $product['quantity'] <= $product['min_quantity'] ? 'danger' : 'success' ?>">
-                    Stock: <?= $product['quantity'] ?>
+                  <span id="product-quantity"
+                        class="quantity-<?php echo $product['id']; ?> badge bg-<?= $product['quantity'] <= $product['min_quantity'] ? 'danger' : 'success' ?>"
+                        data-min-quantity="<?= $product['min_quantity'] ?>">
+                      Stock: <?= $product['quantity'] ?>
                   </span>
+
                 </div>
                 <form method="POST" action="add_to_cart.php">
                   <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
@@ -261,7 +264,24 @@ include 'includes/user_header.php';
           }
         }
       }
+      else if (JSON.parse(event.data).type === 'product_buyed') {
+        let data = JSON.parse(event.data);
+        data.content.forEach(item => {
+            const span = document.querySelector(`.quantity-${item.productId}`);
+            if (span) {
+                const currentText = span.textContent.trim(); // e.g., "Stock: 5"
+                const currentQuantity = parseInt(currentText.replace('Stock: ', ''), 10);
+                const minQuantity = parseInt(span.dataset.minQuantity, 10);
 
+                const newQuantity = currentQuantity - item.quantity;
+                span.textContent = `Stock: ${newQuantity}`;
+
+                // Update badge color
+                span.classList.remove('bg-success', 'bg-danger');
+                span.classList.add(newQuantity <= minQuantity ? 'bg-danger' : 'bg-success');
+            }
+        });
+      }
       
   };
 

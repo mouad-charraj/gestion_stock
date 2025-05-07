@@ -108,7 +108,7 @@ include '../includes/admin_header.php';
                                     <td><?php echo htmlspecialchars($product['name']); ?></td>
                                     <td><?php echo substr(htmlspecialchars($product['description']), 0, 50) . (strlen($product['description']) > 50 ? '...' : ''); ?></td>
                                     <td><?php echo number_format($product['price'], 2); ?> €</td>
-                                    <td>
+                                    <td id="quantity-<?php echo $product['id']; ?>">
                                         <span class="badge bg-<?php echo $product['quantity'] <= $product['min_quantity'] ? 'danger' : 'success'; ?>">
                                             <?php echo $product['quantity']; ?>
                                         </span>
@@ -147,3 +147,44 @@ include '../includes/admin_header.php';
 </div>
 
 <?php include '../includes/admin_footer.php'; ?>
+
+<script>
+  const socket = new WebSocket('ws://localhost:8080');
+
+  socket.onopen = function() {
+      console.log('Connection established');
+  };
+
+  socket.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    console.log('Message received:', data);
+
+    if (data.type === 'product_buyed') {
+        data.content.forEach(item => {
+            const td = document.getElementById(`quantity-${item.productId}`);
+            if (td) {
+                const span = td.querySelector('span');
+                let currentQuantity = parseInt(span.textContent, 10);
+                const minQuantity = item['min_quantity'];
+                console.log(minQuantity)
+
+                const newQuantity = currentQuantity - item.quantity;
+                span.textContent = newQuantity;
+
+                // Update badge color
+                span.classList.remove('bg-success', 'bg-danger');
+                span.classList.add(newQuantity <= minQuantity ? 'bg-danger' : 'bg-success');
+            }
+        });
+    }
+};
+
+
+  socket.onerror = function(error) {
+      console.log('WebSocket error:', error);
+  };
+
+  socket.onclose = function() {
+      console.log('Connection closed');
+  };
+</script>

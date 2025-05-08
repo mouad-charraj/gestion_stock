@@ -29,9 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 case 'admin':
                     redirect('admin/dashboard.php');
                     break;
-                case 'supplier':
-                case 'fournisseur': // selon votre nomenclature
-                    redirect('fournisseur.php');
+                case 'supplier': // selon votre nomenclature
+                    redirect('fournisseur/fournisseur.php');
                     break;
                 default:
                     redirect('index.php');

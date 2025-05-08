@@ -2,6 +2,13 @@
 
 require_once '../config.php';
 
+$conn = connectDB();
+
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+} 
+
 // Vérifier si l'ID est fourni
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header('Location: suppliers.php');
@@ -9,7 +16,7 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 }
 
 $id = $_GET['id'];
-$conn = connectDB();
+
 // Récupérer les informations du fournisseur
 $stmt = $conn->prepare("SELECT * FROM suppliers WHERE id = ?");
 $stmt->bind_param("i", $id);

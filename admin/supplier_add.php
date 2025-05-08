@@ -3,6 +3,13 @@ require_once '../config.php';
 
 // Vérifier si l'utilisateur est connecté en tant qu'admin
 $conn = connectDB();
+
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
+
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name']);
     $contact = trim($_POST['contact_person']);

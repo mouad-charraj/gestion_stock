@@ -2,6 +2,12 @@
 require '../config.php';
 $conn = connectDB();
 
+
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
+
 function getValue($conn, $query) {
     $res = $conn->query($query);
     $row = $res->fetch_assoc();

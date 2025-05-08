@@ -1,8 +1,13 @@
 <?php
 include 'includes/header.php';
-include 'connexion.php';
-?>
+include '../config.php';
 
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
+
+?>
 <div class="container mt-5">
     <h1>Gestion des Catégories</h1>
     <a href="category_add.php" class="btn btn-success mb-3">

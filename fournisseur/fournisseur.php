@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once '../config.php';
 
 
 
@@ -133,7 +133,7 @@ if ($is_supplier && $supplier_id > 0) {
 }
 
 $page_title = "Tableau de bord fournisseur";
-include 'includes/supplier_header.php';
+include '../includes/supplier_header.php';
 ?>
 
 <div class="container-fluid mt-4">

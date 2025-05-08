@@ -5,7 +5,10 @@
 require_once '../config.php';
 
 // Vérifier si l'utilisateur est connecté en tant qu'admin
-
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
 
 // Vérifier si l'ID est fourni
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {

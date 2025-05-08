@@ -1,10 +1,13 @@
-
-
 <?php
-
 require_once '../config.php';
 
+
+$conn = connectDB();
 // Vérifier si l'utilisateur est connecté et est un administrateur
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
 
 
 $errors = [];
@@ -36,10 +39,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = "Les mots de passe ne correspondent pas.";
     }
     
-    if ($role !== 'user' && $role !== 'admin') {
+    // Modification pour inclure le rôle supplier
+    $allowed_roles = ['user', 'admin', 'supplier'];
+    if (!in_array($role, $allowed_roles)) {
         $errors[] = "Rôle invalide.";
     }
-    $conn = connectDB();
+    
+    
     // Vérifier si le nom d'utilisateur ou l'email existe déjà
     $check_query = "SELECT id FROM users WHERE username = ? OR email = ?";
     $check_stmt = $conn->prepare($check_query);
@@ -124,6 +130,8 @@ include '../includes/admin_header.php';
                             <select class="form-select" id="role" name="role" required>
                                 <option value="user" <?php echo (isset($_POST['role']) && $_POST['role'] === 'user') ? 'selected' : ''; ?>>Utilisateur</option>
                                 <option value="admin" <?php echo (isset($_POST['role']) && $_POST['role'] === 'admin') ? 'selected' : ''; ?>>Administrateur</option>
+                                <!-- Ajout du rôle supplier -->
+                                <option value="supplier" <?php echo (isset($_POST['role']) && $_POST['role'] === 'supplier') ? 'selected' : ''; ?>>Fournisseur</option>
                             </select>
                         </div>
                         

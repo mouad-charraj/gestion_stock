@@ -10,6 +10,10 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 $conn = connectDB();
 
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
 // Fonctions
 function getValue($conn, $query) {
     $res = $conn->query($query);

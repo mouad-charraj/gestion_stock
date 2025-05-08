@@ -11,6 +11,9 @@ use Ratchet\WebSocket\WsServer;
 
 $conn = connectDB();
 
+if (!isLoggedIn()) {
+    redirect('login_form.php');
+}
 // Structure du panier : [id => ['quantity' => qty, 'price' => price], ...]
 $cart = &$_SESSION['cart'];
 $cart = $cart ?? [];

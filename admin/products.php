@@ -13,6 +13,10 @@ use Ratchet\WebSocket\WsServer;
 
 $conn = connectDB();
 
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
 // Suppression d'un produit
 if (isset($_POST['delete_product']) && isset($_POST['product_id'])) {
     $product_id = filter_input(INPUT_POST, 'product_id', FILTER_SANITIZE_NUMBER_INT);

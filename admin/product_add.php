@@ -12,6 +12,11 @@ use Ratchet\WebSocket\WsServer;
 // Connexion à la base de données
 $conn = connectDB();
 
+
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
 // Récupération des fournisseurs et des catégories pour les listes déroulantes
 $query = "SELECT id, name FROM suppliers ORDER BY name ASC";
 $stmt = $conn->prepare($query);

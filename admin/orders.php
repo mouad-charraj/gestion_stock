@@ -3,6 +3,11 @@ $page_title = "Gestion des Commandes";
 require_once '../config.php';
 $conn = connectDB();
 
+
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
 // Récupération des catégories
 $categories = [];
 $res = $conn->query("SELECT * FROM categories ORDER BY name");

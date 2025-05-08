@@ -4,6 +4,12 @@
 require_once '../config.php';
 $conn = connectDB();
 
+
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
+
 // Afficher toutes les commandes de la table orders pour diagnostiquer
 echo "<h2>Debugging des commandes</h2>";
 echo "<h3>Toutes les commandes</h3>";

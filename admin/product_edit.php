@@ -20,6 +20,10 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 $product_id = filter_input(INPUT_GET, 'id', FILTER_SANITIZE_NUMBER_INT);
 $conn = connectDB();
 
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
 // Fetch product data
 $query = "SELECT * FROM products WHERE id = ?";
 $stmt = $conn->prepare($query);

@@ -4,6 +4,11 @@ require_once '../config.php';
 // Connexion à la base de données
 $conn = connectDB();
 
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
+
 // Suppression d'un fournisseur
 if (isset($_GET['delete']) && is_numeric($_GET['delete'])) {
     $id = $_GET['delete'];

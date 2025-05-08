@@ -1,8 +1,8 @@
 <?php
-require_once 'config.php';
+require_once '../config.php';
 
 if (!isLoggedIn() || $_SESSION['user_role'] !== 'supplier') {
-    redirect('login_form.php');
+    redirect('../login_form.php');
 }
 
 $conn = connectDB();
@@ -60,7 +60,7 @@ while ($order = $result->fetch_assoc()) {
 }
 
 $page_title = "Historique des Commandes";
-include 'includes/supplier_header.php';
+include '../includes/supplier_header.php';
 ?>
 
 <div class="container-fluid mt-4">

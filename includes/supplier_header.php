@@ -110,7 +110,7 @@ if (!isset($page_title)) {
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-danger" href="logout.php">
+                        <a class="nav-link text-danger" href="../logout.php">
                             <i class="fas fa-sign-out-alt"></i> Déconnexion
                         </a>
                     </li>
@@ -140,7 +140,7 @@ if (!isset($page_title)) {
                                 <ul class="dropdown-menu dropdown-menu-end">
                                     <li><a class="dropdown-item" href="profile.php"><i class="fas fa-user me-2"></i> Profil</a></li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item text-danger" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i> Déconnexion</a></li>
+                                    <li><a class="dropdown-item text-danger" href="../logout.php"><i class="fas fa-sign-out-alt me-2"></i> Déconnexion</a></li>
                                 </ul>
                             </li>
                         </ul>
@@ -173,7 +173,7 @@ if (!isset($page_title)) {
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-danger" href="logout.php">
+                            <a class="nav-link text-danger" href="../logout.php">
                                 <i class="fas fa-sign-out-alt"></i> Déconnexion
                             </a>
                         </li>

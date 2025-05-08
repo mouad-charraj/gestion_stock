@@ -1,6 +1,11 @@
 <?php
 require_once '../config.php';
 
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
+
 // Récupérer la liste des clients pour le formulaire
 $conn = connectDB();
 $clientsQuery = "SELECT id, name, email FROM clients";

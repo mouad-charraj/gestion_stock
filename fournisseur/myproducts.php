@@ -1,8 +1,8 @@
 <?php
-require_once 'config.php';
+require_once '../config.php';
 
 if (!isLoggedIn() || $_SESSION['user_role'] !== 'supplier') {
-    redirect('login_form.php');
+    redirect('../login_form.php');
 }
 
 $conn = connectDB();
@@ -37,7 +37,7 @@ if ($supplier_id > 0) {
 }
 
 $page_title = "Mes Produits";
-include 'includes/supplier_header.php';
+include '../includes/supplier_header.php';
 ?>
 
 <div class="container-fluid">

@@ -2,9 +2,12 @@
 <?php
 
 require_once '../config.php';
-
+$conn = connectDB();
 // Vérifier si l'utilisateur est connecté et est un administrateur
-
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
 
 // Suppression d'un utilisateur
 if (isset($_POST['delete_user']) && isset($_POST['user_id'])) {
@@ -31,7 +34,7 @@ if (isset($_POST['delete_user']) && isset($_POST['user_id'])) {
     header('Location: users.php');
     exit();
 }
-$conn = connectDB();
+
 // Récupération de tous les utilisateurs
 $query = "SELECT * FROM users";
 $stmt = $conn->prepare($query);

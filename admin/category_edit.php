@@ -4,6 +4,11 @@ require_once '../config.php';
 // Connexion à la base de données
 $conn = connectDB();
 
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
+
 // Vérifier si l'ID de la catégorie est passé en paramètre
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     die("ID de la catégorie invalide.");

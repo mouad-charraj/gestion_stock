@@ -181,6 +181,24 @@ include '../includes/admin_header.php';
             }
         });
     }
+    else if(data.type === 'product_purchased') {
+        data.content.forEach(item => {
+            const td = document.getElementById(`quantity-${item.productId}`);
+            if (td) {
+                const span = td.querySelector('span');
+                let currentQuantity = parseInt(span.textContent, 10);
+                const minQuantity = item['min_quantity'];
+                console.log(minQuantity)
+
+                const newQuantity = Number(currentQuantity) + Number(item.quantity);
+                span.textContent = newQuantity;
+
+                // Update badge color
+                span.classList.remove('bg-success', 'bg-danger');
+                span.classList.add(newQuantity <= minQuantity ? 'bg-danger' : 'bg-success');
+            }
+        });
+    }
 };
 
 

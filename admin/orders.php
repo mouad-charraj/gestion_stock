@@ -1,6 +1,13 @@
 <?php
 $page_title = "Gestion des Commandes";
 require_once '../config.php';
+require_once '../vendor/autoload.php';
+require '../productNotifier.php';
+require_once '../websocket_helper.php';
+
+use Ratchet\Server\IoServer;
+use Ratchet\Http\HttpServer;
+use Ratchet\WebSocket\WsServer;
 $conn = connectDB();
 
 
@@ -65,6 +72,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order']) && $s
 
     $_SESSION['message'] = "Commande fournisseur créée avec succès.";
     $_SESSION['message_type'] = "success";
+
+    $message = json_encode([
+        'type' => 'supplier_buyed',
+        'order_id' => $order_id,
+        'content' => [
+            "type" => "new_order", // you can customize this event type
+            "name" => $order_name,
+            "sender_id" => $admin_id,
+            "receiver_id" => $selected_supplier,
+            "sender_type" => "admin",
+            "receiver_type" => "supplier",
+            "total_amount" => $total,
+            "status" => "en attente",
+            "created_at" => date("Y-m-d H:i:s"), // or use NOW() from DB if you retrieve it
+            "updated_at" => date("Y-m-d H:i:s"),
+            "order_id" => $order_id // the auto-incremented ID
+        ]
+    ]);
+    notifyClients($message);
     
     // Rediriger pour éviter la soumission multiple du formulaire
     header("Location: orders.php");
@@ -292,7 +318,7 @@ include '../includes/admin_header.php';
                                     if ($order['status'] === 'terminée') continue;
                                     $has_active_orders = true;
                                 ?>
-                                    <tr>
+                                    <tr id="order-<?= $order['id'] ?>">
                                         <td><?= $order['id'] ?></td>
                                         <td><?= htmlspecialchars($order['supplier_name']) ?></td>
                                         <td><?= htmlspecialchars($order['category_name']) ?></td>
@@ -301,7 +327,7 @@ include '../includes/admin_header.php';
                                         <td><?= number_format($order['selling_price'], 2) ?> €</td>
                                         <td><?= number_format($order['purchase_price'], 2) ?> €</td>
                                         <td><?= number_format($order['total_amount'], 2) ?> €</td>
-                                        <td>
+                                        <td class="order-status">
                                             <?php
                                             $badge_class = 'bg-warning text-dark';
                                             if ($order['status'] === 'en attente') {
@@ -315,7 +341,7 @@ include '../includes/admin_header.php';
                                             </span>
                                         </td>
                                         <td><?= date('d/m/Y H:i', strtotime($order['created_at'])) ?></td>
-                                        <td>
+                                        <td class="order-actions">
                                             <?php if ($order['status'] === 'en attente'): ?>
                                                 <div class="btn-group">
                                                     <a href="?action=update_status&order_id=<?= $order['id'] ?>&status=en cours" class="btn btn-sm btn-primary">
@@ -330,7 +356,7 @@ include '../includes/admin_header.php';
                                                     Marquer terminée
                                                 </a>
                                             <?php endif; ?>
-                                            
+
                                             <?php if ($order['status'] !== 'annulée'): ?>
                                                 <a href="?action=update_status&order_id=<?= $order['id'] ?>&status=annulée" class="btn btn-sm btn-danger">
                                                     Annuler
@@ -379,7 +405,7 @@ include '../includes/admin_header.php';
                                     if ($order['status'] !== 'terminée') continue;
                                     $has_completed_orders = true;
                                 ?>
-                                    <tr>
+                                    <tr id="order-<?= $order['id'] ?>">
                                         <td><?= $order['id'] ?></td>
                                         <td><?= htmlspecialchars($order['supplier_name']) ?></td>
                                         <td><?= htmlspecialchars($order['category_name']) ?></td>
@@ -388,7 +414,7 @@ include '../includes/admin_header.php';
                                         <td><?= number_format($order['selling_price'], 2) ?> €</td>
                                         <td><?= number_format($order['purchase_price'], 2) ?> €</td>
                                         <td><?= number_format($order['total_amount'], 2) ?> €</td>
-                                        <td>
+                                        <td class="order-status">
                                             <span class="badge bg-success">
                                                 Terminée
                                             </span>
@@ -430,6 +456,120 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+  const socket = new WebSocket('ws://localhost:8080');
+
+  socket.onopen = function() {
+      console.log('Connection established');
+  };
+
+  socket.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    console.log('Message received:', data);
+
+    if (data.type === 'supplier_change_status') {
+        const orderId = data.order_id;
+        const newStatus = data.status;
+
+        const row = document.getElementById(`order-${orderId}`);
+        if (row) {
+            const statusCell = row.querySelector('.order-status');
+            if (statusCell) {
+                let badgeClass = 'bg-warning text-dark'; // default
+                if (newStatus === 'en attente') {
+                    badgeClass = 'bg-info text-dark';
+                } else if (newStatus === 'annulée') {
+                    badgeClass = 'bg-danger';
+                }
+
+                const label = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+
+                statusCell.innerHTML = `
+                    <span class="badge ${badgeClass}">
+                        ${label}
+                    </span>
+                `;
+            }
+            // Find the actions cell
+            const actionsCell = row.querySelector('.order-actions');
+            if (actionsCell) {
+                let buttonsHtml = '';
+
+                if (newStatus === 'en attente') {
+                    buttonsHtml += `
+                        <div class="btn-group">
+                            <a href="?action=update_status&order_id=${orderId}&status=en cours" class="btn btn-sm btn-primary">
+                                Marquer en cours
+                            </a>
+                            <a href="?action=update_status&order_id=${orderId}&status=terminée" class="btn btn-sm btn-success">
+                                Marquer terminée
+                            </a>
+                        </div>
+                    `;
+                } else if (newStatus === 'en cours') {
+                    buttonsHtml += `
+                        <a href="?action=update_status&order_id=${orderId}&status=terminée" class="btn btn-sm btn-success">
+                            Marquer terminée
+                        </a>
+                    `;
+                }
+
+                if (newStatus !== 'annulée') {
+                    buttonsHtml += `
+                        <a href="?action=update_status&order_id=${orderId}&status=annulée" class="btn btn-sm btn-danger">
+                            Annuler
+                        </a>
+                    `;
+                }
+
+                actionsCell.innerHTML = buttonsHtml;
+            }
+        }
+
+        if (newStatus === 'terminée') {
+        // Supprimer la ligne de l'ancienne table
+        row.remove();
+
+        // Créer une nouvelle ligne HTML avec les mêmes données
+        const cells = row.querySelectorAll('td');
+        const date = new Date();
+        const formattedDate = date.toLocaleDateString('fr-FR') + ' ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+        const newRow = document.createElement('tr');
+        newRow.id = `order-${orderId}`;
+        newRow.innerHTML = `
+            <td>${cells[0].innerText}</td>
+            <td>${cells[1].innerText}</td>
+            <td>${cells[2].innerText}</td>
+            <td>${cells[3].innerText}</td>
+            <td>${cells[4].innerText}</td>
+            <td>${cells[5].innerText}</td>
+            <td>${cells[6].innerText}</td>
+            <td>${cells[7].innerText}</td>
+            <td class="order-status"><span class="badge bg-success">Terminée</span></td>
+            <td>${formattedDate}</td>
+        `;
+
+        // Trouver le <tbody> de la table des commandes terminées
+        const completedTableBody = document.querySelector('.card.shadow.mt-4 tbody');
+
+        if (completedTableBody) {
+            completedTableBody.appendChild(newRow);
+        }
+    }
+    }
+};
+
+
+
+
+
+  socket.onerror = function(error) {
+      console.log('WebSocket error:', error);
+  };
+
+  socket.onclose = function() {
+      console.log('Connection closed');
+  };
 </script>
 </body>
 </html>

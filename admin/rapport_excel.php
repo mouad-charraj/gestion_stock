@@ -14,23 +14,62 @@ if ($_SESSION['user_role'] !== 'admin') {
     header("Location: ../login.php");
     exit;
 }
+
 // Fonctions
 function getValue($conn, $query) {
     $res = $conn->query($query);
     $row = $res->fetch_assoc();
     return $row ? $row['total'] : 0;
 }
+
 function getTopProducts($conn) {
     return $conn->query("SELECT p.name, SUM(oi.quantity) AS total_qte FROM order_items oi JOIN products p ON oi.product_id = p.id GROUP BY oi.product_id ORDER BY total_qte DESC LIMIT 10");
 }
+
 function getStockStatus($conn) {
     return $conn->query("SELECT name, quantity, min_quantity FROM products ORDER BY name ASC");
 }
+
 function getClientOrders($conn) {
-    return $conn->query("SELECT * FROM orders WHERE sender_type='user' AND receiver_type='admin'");
+    return $conn->query("
+        SELECT 
+            o.id, 
+            u.username, 
+            u.email, 
+            o.total_amount, 
+            o.created_at,
+            GROUP_CONCAT(CONCAT(p.name, ' (', oi.quantity, ' x ', oi.unit_price, '€)') SEPARATOR '\n') AS products_details,
+            GROUP_CONCAT(p.name SEPARATOR '\n') AS products,
+            GROUP_CONCAT(oi.quantity SEPARATOR '\n') AS quantities,
+            GROUP_CONCAT(oi.unit_price SEPARATOR '\n') AS unit_prices
+        FROM orders o
+        JOIN users u ON o.sender_id = u.id
+        JOIN order_items oi ON o.id = oi.order_id
+        JOIN products p ON oi.product_id = p.id
+        WHERE o.sender_type='user' AND o.receiver_type='admin'
+        GROUP BY o.id
+    ");
 }
+
 function getSupplierOrders($conn) {
-    return $conn->query("SELECT * FROM orders WHERE sender_type='admin' AND receiver_type='supplier'");
+    return $conn->query("
+        SELECT 
+            o.id, 
+            s.name, 
+            o.total_amount, 
+            o.status, 
+            o.created_at,
+            GROUP_CONCAT(CONCAT(p.name, ' (', oi.quantity, ' x ', oi.unit_price, '€)') SEPARATOR '\n') AS products_details,
+            GROUP_CONCAT(p.name SEPARATOR '\n') AS products,
+            GROUP_CONCAT(oi.quantity SEPARATOR '\n') AS quantities,
+            GROUP_CONCAT(oi.unit_price SEPARATOR '\n') AS unit_prices
+        FROM orders o
+        JOIN suppliers s ON o.receiver_id = s.id
+        JOIN order_items oi ON o.id = oi.order_id
+        JOIN products p ON oi.product_id = p.id
+        WHERE o.sender_type='admin' AND o.receiver_type='supplier'
+        GROUP BY o.id
+    ");
 }
 
 // Données
@@ -66,7 +105,7 @@ $borderStyle = ['borders' => ['allBorders' => ['borderStyle' => Border::BORDER_T
 
 // Titre principal
 $sheet->setCellValue("A{$row}", "Rapport Complet des Transactions");
-$sheet->mergeCells("A{$row}:E{$row}");
+$sheet->mergeCells("A{$row}:H{$row}");
 $sheet->getStyle("A{$row}")->applyFromArray([
     'font' => ['bold' => true, 'size' => 16],
     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
@@ -76,7 +115,7 @@ $row += 2;
 // Statistiques
 $sheet->setCellValue("A{$row}", "Statistiques Générales");
 $sheet->getStyle("A{$row}")->applyFromArray($headerStyle);
-$sheet->mergeCells("A{$row}:E{$row}");
+$sheet->mergeCells("A{$row}:H{$row}");
 $row++;
 
 $sheet->fromArray([
@@ -87,48 +126,72 @@ $sheet->fromArray([
 $sheet->getStyle("A{$row}:B" . ($row + 2))->applyFromArray($borderStyle);
 $row += 4;
 
-// Commandes Clients
+// Commandes Clients - Modifié pour inclure les produits
 $sheet->setCellValue("A{$row}", "Commandes Clients (Utilisateur → Admin)");
 $sheet->getStyle("A{$row}")->applyFromArray($headerStyle);
-$sheet->mergeCells("A{$row}:E{$row}");
+$sheet->mergeCells("A{$row}:H{$row}");
 $row++;
 
-$sheet->fromArray(['ID', 'Nom', 'Montant Total', 'Status', 'Date'], NULL, "A{$row}");
-$sheet->getStyle("A{$row}:E{$row}")->applyFromArray($tableHeaderStyle);
+$sheet->fromArray([
+    'ID', 
+    'Utilisateur', 
+    'Email', 
+    'Produits', 
+    'Quantités', 
+    'Prix Unitaire', 
+    'Montant Total', 
+    'Date'
+], NULL, "A{$row}");
+$sheet->getStyle("A{$row}:H{$row}")->applyFromArray($tableHeaderStyle);
 $row++;
 
 while ($order = $clientOrders->fetch_assoc()) {
     $sheet->fromArray([
         $order['id'],
-        $order['name'],
+        $order['username'],
+        $order['email'],
+        $order['products'],
+        $order['quantities'],
+        $order['unit_prices'],
         number_format($order['total_amount'], 2) . ' €',
-        $order['status'],
         $order['created_at']
     ], NULL, "A{$row}");
-    $sheet->getStyle("A{$row}:E{$row}")->applyFromArray($borderStyle);
+    $sheet->getStyle("A{$row}:H{$row}")->applyFromArray($borderStyle);
     $row++;
 }
 $row++;
 
-// Commandes Fournisseurs
+// Commandes Fournisseurs - Modifié pour inclure les produits
 $sheet->setCellValue("A{$row}", "Commandes Fournisseurs (Admin → Fournisseur)");
 $sheet->getStyle("A{$row}")->applyFromArray($headerStyle);
-$sheet->mergeCells("A{$row}:E{$row}");
+$sheet->mergeCells("A{$row}:H{$row}");
 $row++;
 
-$sheet->fromArray(['ID', 'Nom', 'Montant Total', 'Status', 'Date'], NULL, "A{$row}");
-$sheet->getStyle("A{$row}:E{$row}")->applyFromArray($tableHeaderStyle);
+$sheet->fromArray([
+    'ID', 
+    'Fournisseur', 
+    'Produits', 
+    'Quantités', 
+    'Prix Unitaire', 
+    'Montant Total', 
+    'Status', 
+    'Date'
+], NULL, "A{$row}");
+$sheet->getStyle("A{$row}:H{$row}")->applyFromArray($tableHeaderStyle);
 $row++;
 
 while ($order = $supplierOrders->fetch_assoc()) {
     $sheet->fromArray([
         $order['id'],
         $order['name'],
+        $order['products'],
+        $order['quantities'],
+        $order['unit_prices'],
         number_format($order['total_amount'], 2) . ' €',
         $order['status'],
         $order['created_at']
     ], NULL, "A{$row}");
-    $sheet->getStyle("A{$row}:E{$row}")->applyFromArray($borderStyle);
+    $sheet->getStyle("A{$row}:H{$row}")->applyFromArray($borderStyle);
     $row++;
 }
 $row++;
@@ -173,7 +236,7 @@ while ($stock = $stockStatus->fetch_assoc()) {
 }
 
 // Ajustement automatique des colonnes
-foreach (range('A', 'E') as $col) {
+foreach (range('A', 'H') as $col) {
     $sheet->getColumnDimension($col)->setAutoSize(true);
 }
 

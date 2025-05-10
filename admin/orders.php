@@ -559,6 +559,36 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     }
+    else if (data.type === 'product_purchased') {
+    let data = JSON.parse(event.data);
+    data.content.forEach(item => {
+        const el = document.getElementById(`product-risk-${item.productId}`);
+        if (el) {
+            const badge = el.querySelector('.badge');
+            if (badge) {
+                let currentQty = parseInt(badge.textContent);
+                let newQty = currentQty + parseInt(item.quantity);
+                badge.textContent = newQty;
+
+                if (newQty > parseInt(item.min_quantity)) {
+                    el.remove();
+                }
+            }
+        }
+    });
+
+    // 🟢 Update the notification count badge
+    const updatedList = document.getElementsByClassName('dropdown-menu-notification-risk');
+    const notifCount = document.getElementById('notification-count');
+    if (notifCount) {
+        notifCount.textContent = updatedList.length;
+        if (updatedList.length === 0) {
+            notifCount.remove(); // Optional: remove badge if empty
+        }
+    }
+}
+
+
 };
 
 

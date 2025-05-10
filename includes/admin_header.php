@@ -2,7 +2,7 @@
 $page_title = "Admin Panel";
 require_once '../config.php';// Assure-toi que $conn est bien défini ici
 
-$low_stock_popup_querys = $conn->query("SELECT name, quantity FROM products WHERE quantity <= min_quantity");
+$low_stock_popup_querys = $conn->query("SELECT name, quantity, id FROM products WHERE quantity <= min_quantity");
 $low_stock_products = [];
 if ($low_stock_popup_querys && $low_stock_popup_querys->num_rows > 0) {
     while ($product = $low_stock_popup_querys->fetch_assoc()) {
@@ -73,29 +73,29 @@ if ($low_stock_popup_querys && $low_stock_popup_querys->num_rows > 0) {
 
                 <!-- Notification stock critique -->
                 <li class="nav-item dropdown me-3">
-    <a class="nav-link text-white position-relative dropdown-toggle" href="#" id="stockDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-        <i class="fas fa-bell"></i>
-        <?php if (count($low_stock_products) > 0): ?>
-            <span class="notification-badge"><?= count($low_stock_products) ?></span>
-        <?php endif; ?>
-    </a>
-    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-notification" aria-labelledby="stockDropdown">
-        <li class="dropdown-header fw-bold">Produits en stock critique</li>
-        <li><hr class="dropdown-divider"></li>
-        <?php if (count($low_stock_products) > 0): ?>
-            <?php foreach ($low_stock_products as $product): ?>
-                <li>
-                    <a class="dropdown-item d-flex justify-content-between" href="products.php">
-                        <?= htmlspecialchars($product['name']) ?>
-                        <span class="badge bg-danger"><?= $product['quantity'] ?></span>
+                    <a class="nav-link text-white position-relative dropdown-toggle" href="#" id="stockDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-bell"></i>
+                        <?php if (count($low_stock_products) > 0): ?>
+                            <span class="notification-badge" id="notification-count"><?= count($low_stock_products) ?></span>
+                        <?php endif; ?>
                     </a>
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-notification" aria-labelledby="stockDropdown">
+                        <li class="dropdown-header fw-bold">Produits en stock critique</li>
+                        <li><hr class="dropdown-divider"></li>
+                        <?php if (count($low_stock_products) > 0): ?>
+                            <?php foreach ($low_stock_products as $product): ?>
+                                <li id="product-risk-<?= htmlspecialchars($product['id']) ?>" class="dropdown-menu-notification-risk">
+                                    <a class="dropdown-item d-flex justify-content-between" href="products.php">
+                                        <?= htmlspecialchars($product['name']) ?>
+                                        <span class="badge bg-danger"><?= $product['quantity'] ?></span>
+                                    </a>
+                                </li>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <li><span class="dropdown-item text-muted">Aucun produit critique</span></li>
+                        <?php endif; ?>
+                    </ul>
                 </li>
-            <?php endforeach; ?>
-        <?php else: ?>
-            <li><span class="dropdown-item text-muted">Aucun produit critique</span></li>
-        <?php endif; ?>
-    </ul>
-</li>
 
 
                 <!-- Utilisateur -->

@@ -2,8 +2,9 @@
 require '../config.php';
 $conn = connectDB();
 
-
-if ($_SESSION['user_role'] !== 'admin') {
+// Vérification de la session et du rôle admin
+session_start();
+if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
     header("Location: ../login.php");
     exit;
 }
@@ -15,19 +16,32 @@ function getValue($conn, $query) {
 }
 
 function getTopProducts($conn) {
-    return $conn->query("SELECT p.name, SUM(oi.quantity) AS total_qte FROM order_items oi JOIN products p ON oi.product_id = p.id GROUP BY oi.product_id ORDER BY total_qte DESC LIMIT 10");
+    return $conn->query("SELECT p.name, SUM(oi.quantity) AS total_qte 
+                        FROM order_items oi 
+                        JOIN products p ON oi.product_id = p.id 
+                        GROUP BY oi.product_id 
+                        ORDER BY total_qte DESC 
+                        LIMIT 10");
 }
 
 function getStockStatus($conn) {
-    return $conn->query("SELECT name, quantity, min_quantity FROM products ORDER BY name ASC");
+    return $conn->query("SELECT name, quantity, min_quantity 
+                        FROM products 
+                        ORDER BY name ASC");
 }
 
 function getClientOrders($conn) {
-    return $conn->query("SELECT * FROM orders WHERE sender_type='user' AND receiver_type='admin'");
+    return $conn->query("SELECT o.id, u.username, u.email, o.total_amount, o.created_at 
+                        FROM orders o
+                        JOIN users u ON o.sender_id = u.id
+                        WHERE o.sender_type='user' AND o.receiver_type='admin'");
 }
 
 function getSupplierOrders($conn) {
-    return $conn->query("SELECT * FROM orders WHERE sender_type='admin' AND receiver_type='supplier'");
+    return $conn->query("SELECT o.id, s.name, o.total_amount, o.status, o.created_at 
+                        FROM orders o
+                        JOIN suppliers s ON o.receiver_id = s.id
+                        WHERE o.sender_type='admin' AND o.receiver_type='supplier'");
 }
 
 $revenus = getValue($conn, "SELECT SUM(total_amount) AS total FROM orders WHERE sender_type='user'");
@@ -103,6 +117,10 @@ $supplierOrders = getSupplierOrders($conn);
         .export-buttons a.pdf {
             background-color: #dc3545;
         }
+        .low-stock {
+            color: red;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -122,13 +140,19 @@ $supplierOrders = getSupplierOrders($conn);
 
     <h2>Commandes Clients (Utilisateur → Admin)</h2>
     <table>
-        <tr><th>ID</th><th>Nom</th><th>Montant Total</th><th>Status</th><th>Date</th></tr>
+        <tr>
+            <th>ID</th>
+            <th>Utilisateur</th>
+            <th>Email</th>
+            <th>Montant Total</th>
+            <th>Date</th>
+        </tr>
         <?php while($row = $clientOrders->fetch_assoc()): ?>
             <tr>
                 <td><?= $row['id'] ?></td>
-                <td><?= $row['name'] ?></td>
+                <td><?= htmlspecialchars($row['username']) ?></td>
+                <td><?= htmlspecialchars($row['email']) ?></td>
                 <td><?= number_format($row['total_amount'], 2) ?>€</td>
-                <td><?= $row['status'] ?></td>
                 <td><?= $row['created_at'] ?></td>
             </tr>
         <?php endwhile; ?>
@@ -136,13 +160,19 @@ $supplierOrders = getSupplierOrders($conn);
 
     <h2>Commandes Fournisseurs (Admin → Fournisseur)</h2>
     <table>
-        <tr><th>ID</th><th>Nom</th><th>Montant Total</th><th>Status</th><th>Date</th></tr>
+        <tr>
+            <th>ID</th>
+            <th>Fournisseur</th>
+            <th>Montant Total</th>
+            <th>Status</th>
+            <th>Date</th>
+        </tr>
         <?php while($row = $supplierOrders->fetch_assoc()): ?>
             <tr>
                 <td><?= $row['id'] ?></td>
-                <td><?= $row['name'] ?></td>
+                <td><?= htmlspecialchars($row['name']) ?></td>
                 <td><?= number_format($row['total_amount'], 2) ?>€</td>
-                <td><?= $row['status'] ?></td>
+                <td><?= htmlspecialchars($row['status']) ?></td>
                 <td><?= $row['created_at'] ?></td>
             </tr>
         <?php endwhile; ?>
@@ -155,7 +185,10 @@ $supplierOrders = getSupplierOrders($conn);
         </thead>
         <tbody>
         <?php while ($row = $topProducts->fetch_assoc()): ?>
-            <tr><td><?= $row['name'] ?></td><td><?= $row['total_qte'] ?></td></tr>
+            <tr>
+                <td><?= htmlspecialchars($row['name']) ?></td>
+                <td><?= $row['total_qte'] ?></td>
+            </tr>
         <?php endwhile; ?>
         </tbody>
     </table>
@@ -163,17 +196,27 @@ $supplierOrders = getSupplierOrders($conn);
     <h2>État des Stocks</h2>
     <table>
         <thead>
-            <tr><th>Produit</th><th>Quantité Actuelle</th><th>Quantité Minimale</th><th>Statut</th></tr>
+            <tr>
+                <th>Produit</th>
+                <th>Quantité Actuelle</th>
+                <th>Quantité Minimale</th>
+                <th>Statut</th>
+            </tr>
         </thead>
         <tbody>
         <?php while ($row = $stockStatus->fetch_assoc()): 
-            $statut = ($row['quantity'] <= $row['min_quantity']) ? 'Stock faible' : 'OK'; ?>
-            <tr><td><?= $row['name'] ?></td><td><?= $row['quantity'] ?></td><td><?= $row['min_quantity'] ?></td><td><?= $statut ?></td></tr>
+            $statut = ($row['quantity'] <= $row['min_quantity']) ? 'Stock faible' : 'OK';
+            $class = ($row['quantity'] <= $row['min_quantity']) ? 'class="low-stock"' : ''; ?>
+            <tr>
+                <td><?= htmlspecialchars($row['name']) ?></td>
+                <td><?= $row['quantity'] ?></td>
+                <td><?= $row['min_quantity'] ?></td>
+                <td <?= $class ?>><?= $statut ?></td>
+            </tr>
         <?php endwhile; ?>
         </tbody>
     </table>
 </div>
-
 
 <?php include '../includes/footer.php'; ?>
 </body>

@@ -39,15 +39,23 @@ if (isset($_GET['delete']) && is_numeric($_GET['delete'])) {
 }
 
 // Récupération des fournisseurs avec leurs produits et catégories
-$query = "SELECT 
-            s.id, s.name, s.contact_person, s.email, s.phone, s.address,
-            GROUP_CONCAT(DISTINCT p.name SEPARATOR ', ') AS products,
-            GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') AS categories
-          FROM suppliers s
-          LEFT JOIN products p ON p.supplier_id = s.id
-          LEFT JOIN categories c ON p.category_id = c.id
-          GROUP BY s.id
-          ORDER BY s.name";
+$query = "SELECT
+    s.id,
+    s.name,
+    s.contact_person,
+    s.email,
+    s.phone,
+    s.address,
+    c.name AS categories,
+    (
+        SELECT GROUP_CONCAT(p.name SEPARATOR ', ')
+        FROM products p
+        WHERE p.category_id = s.category_id
+    ) AS products
+FROM suppliers s
+LEFT JOIN categories c ON c.id = s.category_id
+ORDER BY s.name;
+";
 
 $result = $conn->query($query);
 $suppliers = $result->fetch_all(MYSQLI_ASSOC);

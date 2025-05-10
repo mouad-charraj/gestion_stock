@@ -283,6 +283,24 @@ include 'includes/user_header.php';
             }
         });
       }
+      else if (JSON.parse(event.data).type === 'product_purchased') {
+        let data = JSON.parse(event.data);
+        data.content.forEach(item => {
+            const span = document.querySelector(`.quantity-${item.productId}`);
+            if (span) {
+                const currentText = span.textContent.trim(); // e.g., "Stock: 5"
+                const currentQuantity = parseInt(currentText.replace('Stock: ', ''), 10);
+                const minQuantity = parseInt(span.dataset.minQuantity, 10);
+
+                const newQuantity = Number(currentQuantity) + Number(item.quantity);
+                span.textContent = `Stock: ${newQuantity}`;
+
+                // Update badge color
+                span.classList.remove('bg-success', 'bg-danger');
+                span.classList.add(newQuantity <= minQuantity ? 'bg-danger' : 'bg-success');
+            }
+        });
+      }
       
   };
 

@@ -1,13 +1,13 @@
 <?php
-session_start();
-if (!isset($_SESSION['user_id'])) {
+
+if ($_SESSION['user_role'] !== 'user') {
     header("Location: ../login.php");
-    exit();
-}
+    exit;
+  }
 ?>
 
 <?php
-session_start();
+
 require_once 'config.php';
 
 // Vérifier si l'ID du produit est fourni

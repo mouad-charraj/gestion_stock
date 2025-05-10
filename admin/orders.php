@@ -50,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order']) && $s
     $product_data = $res->fetch_assoc();
     $product_name = $product_data['name'];
     
+    
     // Insérer la commande
     $stmt = $conn->prepare("INSERT INTO orders (name, sender_id, receiver_id, sender_type, receiver_type, total_amount, status, created_at, updated_at)
                   VALUES (?, ?, ?, 'admin', 'supplier', ?, 'en attente', NOW(), NOW())");
@@ -316,20 +317,7 @@ include '../includes/admin_header.php';
                                         </td>
                                         <td><?= date('d/m/Y H:i', strtotime($order['created_at'])) ?></td>
                                         <td>
-                                            <?php if ($order['status'] === 'en attente'): ?>
-                                                <div class="btn-group">
-                                                    <a href="?action=update_status&order_id=<?= $order['id'] ?>&status=en cours" class="btn btn-sm btn-primary">
-                                                        Marquer en cours
-                                                    </a>
-                                                    <a href="?action=update_status&order_id=<?= $order['id'] ?>&status=terminée" class="btn btn-sm btn-success">
-                                                        Marquer terminée
-                                                    </a>
-                                                </div>
-                                            <?php elseif ($order['status'] === 'en cours'): ?>
-                                                <a href="?action=update_status&order_id=<?= $order['id'] ?>&status=terminée" class="btn btn-sm btn-success">
-                                                    Marquer terminée
-                                                </a>
-                                            <?php endif; ?>
+                                           
                                             
                                             <?php if ($order['status'] !== 'annulée'): ?>
                                                 <a href="?action=update_status&order_id=<?= $order['id'] ?>&status=annulée" class="btn btn-sm btn-danger">

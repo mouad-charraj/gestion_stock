@@ -65,6 +65,12 @@ if (!empty($filter_customer)) {
     $types .= 'i';
 }
 
+if (!empty($filter_product)) {
+    $where_clauses[] = "EXISTS (SELECT 1 FROM order_items oi2 WHERE oi2.order_id = o.id AND oi2.product_id = ?)";
+    $params[] = $filter_product;
+    $types .= 'i';
+}
+
 $where_clause = implode(" AND ", $where_clauses);
 
 // Requête pour les commandes
@@ -83,16 +89,6 @@ $orders_query = "
     JOIN order_items oi ON o.id = oi.order_id
     JOIN products p ON oi.product_id = p.id
     WHERE $where_clause
-";
-
-// Ajout du filtre produit si nécessaire
-if (!empty($filter_product)) {
-    $orders_query .= " AND oi.product_id = ?";
-    $params[] = $filter_product;
-    $types .= 'i';
-}
-
-$orders_query .= "
     GROUP BY o.id, u.username, o.created_at, o.total_amount
     ORDER BY o.created_at DESC
 ";

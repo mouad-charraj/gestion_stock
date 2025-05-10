@@ -184,5 +184,3 @@ include '../includes/supplier_header.php';
         </div>
     </div>
 </div>
-
-<?php include 'supplier_footer.php'; ?>

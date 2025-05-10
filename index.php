@@ -3,8 +3,9 @@ require_once 'config.php';
 
 
 // Vérifier si l'utilisateur est connecté
-if (!isLoggedIn()) {
-    redirect('login_form.php');
+if ($_SESSION['user_role'] !== 'user') {
+  header("Location: ../login.php");
+  exit;
 }
 
 $conn = connectDB();

@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 require_once 'config.php';
 require_once './vendor/autoload.php';
 require './productNotifier.php';
@@ -11,9 +11,10 @@ use Ratchet\WebSocket\WsServer;
 
 $conn = connectDB();
 
-if (!isLoggedIn()) {
-    redirect('login_form.php');
-}
+if ($_SESSION['user_role'] !== 'user') {
+    header("Location: ../login.php");
+    exit;
+  }
 // Structure du panier : [id => ['quantity' => qty, 'price' => price], ...]
 $cart = &$_SESSION['cart'];
 $cart = $cart ?? [];

@@ -4,9 +4,10 @@ require_once 'config.php';
 $conn = connectDB();
 
 // Vérifie que l'utilisateur est connecté
-if (!isLoggedIn()) {
-    redirect('login_form.php');
-}
+if ($_SESSION['user_role'] !== 'user') {
+    header("Location: ../login.php");
+    exit;
+  }
 
 // Vérifie l’ID du produit
 if (!isset($_GET['id'])) {

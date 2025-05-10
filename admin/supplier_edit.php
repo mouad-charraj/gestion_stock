@@ -141,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
-    <?php include 'includes/header.php'; ?>
+    <?php include '../includes/admin_header.php'; ?>
     
     <div class="container">
         <h1>Modifier un Fournisseur</h1>
@@ -183,7 +183,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
     </div>
     
-    <?php include 'includes/footer.php'; ?>
+    <?php include '../includes/admin_footer.php'; ?>
     <script src="../assets/js/script.js"></script>
 </body>
 </html>

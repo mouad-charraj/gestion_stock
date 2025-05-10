@@ -22,6 +22,7 @@ $page_title = "Admin Panel";
         <div class="container-fluid d-flex justify-content-between align-items-center py-3 px-4 bg-dark text-white">
             <div class="logo">
                 <h1 class="h4 m-0"><i class="fas fa-warehouse me-2"></i>Gestion des Stocks</h1>
+                
             </div>
             <nav class="main-nav">
                 <ul class="nav">
@@ -65,17 +66,18 @@ $page_title = "Admin Panel";
                             <i class="fas fa-sign-out-alt me-1"></i> Logout
                         </a>
                     </li>
+                    <li class="nav-item">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user-circle"></i> <?= htmlspecialchars($_SESSION['username'] ) ?>
+                            </a>
+                    </li>
                 </ul>
             </nav>
         </div>
     </header>
 
     <!-- Contenu principal ici -->
-    <main class="container mt-4">
-        <!-- Exemple de contenu -->
-        <h2>Bienvenue dans l'administration</h2>
-        <p>Utilisez le menu ci-dessus pour gérer les ressources.</p>
-    </main>
+    
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

@@ -97,20 +97,26 @@ include '../includes/admin_header.php';
                                     </td>
                                     <td><?php echo date('d/m/Y', strtotime($user['created_at'])); ?></td>
                                     <td>
-                                        <div class="btn-group" role="group">
-                                            <a href="user_edit.php?id=<?php echo $user['id']; ?>" class="btn btn-sm btn-primary">
-                                                <i class="fas fa-edit"></i> Modifier
-                                            </a>
-                                            
-                                            <?php if ($user['id'] != $_SESSION['user_id']): ?>
-                                            <form method="POST" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur?');">
-                                                <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
-                                                <button type="submit" name="delete_user" class="btn btn-sm btn-danger">
-                                                    <i class="fas fa-trash"></i> Supprimer
-                                                </button>
-                                            </form>
-                                            <?php endif; ?>
-                                        </div>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="user_edit.php?id=<?php echo $user['id']; ?>" 
+                                        class="btn btn-outline-primary" 
+                                        title="Modifier">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        
+                                        <?php if ($user['id'] != $_SESSION['user_id']): ?>
+                                        <form method="POST" 
+                                            onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur?');" 
+                                            style="display: inline;">
+                                            <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
+                                            <button type="submit" name="delete_user" 
+                                                    class="btn btn-outline-danger" 
+                                                    title="Supprimer">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </form>
+                                        <?php endif; ?>
+                                    </div>
                                     </td>
                                 </tr>
                                 <?php endwhile; ?>

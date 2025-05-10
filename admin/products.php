@@ -121,17 +121,24 @@ include '../includes/admin_header.php';
                                     <td><?php echo htmlspecialchars($product['supplier_name'] ?? 'N/A'); ?></td>
                                     <td><?php echo htmlspecialchars($product['category_name'] ?? 'N/A'); ?></td>
                                     <td>
-                                        <div class="btn-group" role="group">
-                                            <a href="product_edit.php?id=<?php echo $product['id']; ?>" class="btn btn-sm btn-primary">
-                                                <i class="fas fa-edit"></i> Modifier
-                                            </a>
-                                            <form method="POST" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet article?');">
-                                                <input type="hidden" name="product_id" value="<?php echo $product['id']; ?>">
-                                                <button type="submit" name="delete_product" class="btn btn-sm btn-danger">
-                                                    <i class="fas fa-trash"></i> Supprimer
-                                                </button>
-                                            </form>
-                                        </div>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="product_edit.php?id=<?php echo $product['id']; ?>" 
+                                        class="btn btn-outline-primary" 
+                                        title="Modifier">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form method="POST" 
+                                            onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet article?');" 
+                                            style="display: inline;">
+                                            <input type="hidden" name="product_id" value="<?php echo $product['id']; ?>">
+                                            <button type="submit" name="delete_product" 
+                                                    class="btn btn-outline-danger" 
+                                                    title="Supprimer">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+
                                     </td>
                                 </tr>
                                 <?php endwhile; ?>

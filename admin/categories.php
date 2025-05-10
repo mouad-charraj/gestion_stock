@@ -1,13 +1,16 @@
 <?php
-include 'includes/header.php';
+
 include '../config.php';
+$conn = connectDB();
 
 if ($_SESSION['user_role'] !== 'admin') {
     header("Location: ../login.php");
     exit;
 }
 
+include '../includes/admin_header.php';
 ?>
+
 <div class="container mt-5">
     <h1>Gestion des Catégories</h1>
     <a href="category_add.php" class="btn btn-success mb-3">
@@ -38,11 +41,19 @@ if ($_SESSION['user_role'] !== 'admin') {
             echo "<em>Aucun article dans cette catégorie.</em>";
         }
 
-        echo "<a href='category_edit.php?id=" . $cat['id'] . "' class='btn btn-primary btn-sm mt-2'>Modifier</a> ";
-        echo "<a href='category_delete.php?id=" . $cat['id'] . "' class='btn btn-danger btn-sm mt-2'>Supprimer</a>";
+        echo "<div class='btn-group btn-group-sm mt-2'>";
+        echo "<a href='category_edit.php?id=" . $cat['id'] . "' class='btn btn-outline-primary' title='Modifier'>";
+        echo "<i class='fas fa-edit'></i>";
+        echo "</a> ";
+        echo "<a href='category_delete.php?id=" . $cat['id'] . "' class='btn btn-outline-danger' title='Supprimer' onclick=\"return confirm('Confirmer la suppression ?')\">";
+        echo "<i class='fas fa-trash-alt'></i>";
+        echo "</a>";
+        echo "</div>";
+
         echo "</div></div>";
     }
     ?>
+
 
 </div>
 </body>

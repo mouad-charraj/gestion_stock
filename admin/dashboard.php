@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 require_once '../config.php';
 $conn = connectDB();
 
@@ -232,7 +232,9 @@ $low_stock_popup_query = $conn->query("
 
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
+        
         <h2>Tableau de bord</h2>
+        <strong>Bienvenue, <?php echo htmlspecialchars($_SESSION['username']); ?>!</strong>
         <div>
             <a href="ventes.php" class="btn btn-outline-primary me-2">
                 <i class="fas fa-history me-1"></i>Historique des ventes

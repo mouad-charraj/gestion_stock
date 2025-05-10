@@ -21,22 +21,22 @@ class ProductNotifier implements MessageComponentInterface {
         echo "Connection closed: {$conn->resourceId}\n"; // For debugging purposes
     }
 
-    // Called when a message is received
     public function onMessage(ConnectionInterface $from, $msg) {
         $data = json_decode($msg, true);
         if ($data) {
             echo "Message received: " . print_r($data, true) . "\n";
-            $this->broadcast($data);  // Broadcasting the message to all connected clients
+            $this->broadcast($data, $from);  // Pass the sender
         }
     }
     
-    public function broadcast($message) {
+    public function broadcast($message, $from) {
         foreach ($this->clients as $client) {
-            if ($client !== $this->from) {
-                $client->send(json_encode($message));  // Send the message to each client
+            if ($client !== $from) {
+                $client->send(json_encode($message));
             }
         }
     }
+    
 
     // Called when an error occurs
     public function onError(ConnectionInterface $conn, \Exception $e) {

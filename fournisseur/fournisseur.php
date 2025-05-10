@@ -319,7 +319,7 @@ const socket = new WebSocket('ws://localhost:8080');
         orderCard.innerHTML = `
             <div class="card-body p-2">
                 <h6 class="card-title">#${order.order_id} - ${order.name}</h6>
-                <p class="card-text small mb-1">Quantité: 1</p>
+                <p class="card-text small mb-1">Quantité: ${order.quantity}</p>
                 <p class="card-text small mb-1">Total: ${totalFormatted} €</p>
                 <div class="d-flex justify-content-between mt-2">
                     <button onclick="updateOrderStatus(${order.order_id}, 'en cours')" class="btn btn-sm btn-warning">En Cours</button>

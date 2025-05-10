@@ -88,7 +88,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order']) && $s
             "status" => "en attente",
             "created_at" => date("Y-m-d H:i:s"), // or use NOW() from DB if you retrieve it
             "updated_at" => date("Y-m-d H:i:s"),
-            "order_id" => $order_id // the auto-incremented ID
+            "order_id" => $order_id, // the auto-incremented ID
+            "quantity" => $quantity
         ]
     ]);
     notifyClients($message);

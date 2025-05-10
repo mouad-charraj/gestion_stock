@@ -157,7 +157,9 @@ include '../includes/admin_header.php';
     </div>
 </div>
 
-<?php include '../includes/admin_footer.php'; ?>
+</div> <!-- container-fluid -->
+</body>
+</html>
 
 <script>
   const socket = new WebSocket('ws://localhost:8080');

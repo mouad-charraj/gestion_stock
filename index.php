@@ -4,7 +4,7 @@ require_once 'config.php';
 
 // Vérifier si l'utilisateur est connecté
 if ($_SESSION['user_role'] !== 'user') {
-  header("Location: ../login.php");
+  header("Location: ./login.php");
   exit;
 }
 

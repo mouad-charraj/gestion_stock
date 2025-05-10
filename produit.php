@@ -187,4 +187,4 @@ include 'includes/user_header.php';
     <?php endif; ?>
 </div>
 
-<?php include 'includes/admin_footer.php'; ?>
+<?php include 'includes/footer.php'; ?>

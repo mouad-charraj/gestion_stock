@@ -573,5 +573,7 @@ document.addEventListener('DOMContentLoaded', function() {
       console.log('Connection closed');
   };
 </script>
+
+<?php include '../includes/footer.php'; ?>
 </body>
 </html>

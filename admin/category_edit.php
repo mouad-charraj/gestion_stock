@@ -168,3 +168,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script src="../assets/js/script.js"></script>
 </body>
 </html>
+
+<?php include '../includes/footer.php'; ?>

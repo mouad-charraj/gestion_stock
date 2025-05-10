@@ -4,6 +4,13 @@ require_once '../config.php';
 // Connexion à la base de données
 $conn = connectDB();
 
+
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
+
+
 // Traitement du formulaire d'ajout de catégorie
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nom = trim($_POST['nom']);
@@ -140,7 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 
-    <?php include 'includes/footer.php'; ?>
+    <?php include '../includes/footer.php'; ?>
     <script src="../assets/js/script.js"></script>
 </body>
 </html>

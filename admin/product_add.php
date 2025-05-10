@@ -233,4 +233,4 @@ include '../includes/admin_header.php';
     </div>
 </div>
 
-<?php include '../includes/admin_footer.php'; ?>
+<?php include '../includes/footer.php'; ?>

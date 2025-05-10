@@ -173,5 +173,8 @@ $supplierOrders = getSupplierOrders($conn);
         </tbody>
     </table>
 </div>
+
+
+<?php include '../includes/footer.php'; ?>
 </body>
 </html>

@@ -135,5 +135,7 @@ include '../includes/admin_header.php';
     </div>
 </div>
 </div> <!-- container-fluid -->
+
+<?php include '../includes/footer.php'; ?>
 </body>
 </html>

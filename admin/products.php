@@ -219,3 +219,6 @@ include '../includes/admin_header.php';
       console.log('Connection closed');
   };
 </script>
+
+
+<?php include '../includes/footer.php'; ?>

@@ -185,7 +185,9 @@ $suppliers = $result->fetch_all(MYSQLI_ASSOC);
         </div>
     </div>
 
-    <?php include '../includes/footer.php'; ?>
+    
     <script src="../assets/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
+<?php include '../includes/footer.php'; ?>

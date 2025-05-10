@@ -183,7 +183,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
     </div>
     
-    <?php include '../includes/admin_footer.php'; ?>
+    <?php include '../includes/footer.php'; ?>
     <script src="../assets/js/script.js"></script>
 </body>
 </html>

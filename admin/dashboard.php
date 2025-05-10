@@ -437,6 +437,8 @@ $low_stock_popup_query = $conn->query("
         </div>
     </div>
 </div>
+
 </body>
 </html>
+<?php include '../includes/footer.php'; ?>
 <?php $conn->close(); ?>

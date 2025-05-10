@@ -1,9 +1,12 @@
 <?php
 
 require_once '../config.php';
-
+$conn = connectDB();
 // Vérifier si l'utilisateur est connecté et est un administrateur
-
+if ($_SESSION['user_role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
 
 // Vérifier si l'ID est fourni
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
@@ -14,7 +17,7 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 }
 
 $user_id = filter_input(INPUT_GET, 'id', FILTER_SANITIZE_NUMBER_INT);
-$conn = connectDB();
+
 // Récupérer les informations de l'utilisateur
 $query = "SELECT * FROM users WHERE id = ?";
 $stmt = $conn->prepare($query);
@@ -168,4 +171,4 @@ include '../includes/admin_header.php';
     </div>
 </div>
 
-<?php include '../includes/admin_footer.php'; ?>
+<?php include '../includes/footer.php'; ?>

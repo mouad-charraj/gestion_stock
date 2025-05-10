@@ -313,6 +313,8 @@ include 'includes/user_header.php';
   };
 </script>
 
+<?php include 'includes/footer.php'; ?>
+
 
 
 

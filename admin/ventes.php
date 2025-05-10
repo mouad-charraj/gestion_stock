@@ -418,5 +418,9 @@ $top_products = $result->fetch_all(MYSQLI_ASSOC);
         });
     });
 </script>
+
+
+
 </body>
 </html>
+<?php include '../includes/footer.php'; ?>

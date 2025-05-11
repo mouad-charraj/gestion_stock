@@ -58,7 +58,7 @@ if ($low_stock_popup_querys && $low_stock_popup_querys->num_rows > 0) {
 <header class="main-header">
     <div class="container-fluid d-flex justify-content-between align-items-center py-3 px-4 bg-dark text-white">
         <div class="logo">
-            <h1 class="h4 m-0"><i class="fas fa-warehouse me-2"></i>Gestion des Stocks</h1>
+            <h1 class="h4 m-0"><i class="fas fa-warehouse me-2"></i>StockFlow</h1>
         </div>
         <nav class="main-nav">
             <ul class="nav">

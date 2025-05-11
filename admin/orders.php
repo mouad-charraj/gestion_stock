@@ -71,10 +71,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order']) && $s
     $stmt->bind_param("iiid", $order_id, $selected_product, $quantity, $purchase_price);
     $stmt->execute();
 
-    $res = $conn->query("SELECT  `user_id` FROM `suppliers` WHERE `id` = $selected_supplier");
-    $supplier_data = $res->fetch_assoc();
-    $supplier_id = $supplier_data['user_id'];
-
     $_SESSION['message'] = "Commande fournisseur créée avec succès.";
     $_SESSION['message_type'] = "success";
 
@@ -85,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order']) && $s
             "type" => "new_order", // you can customize this event type
             "name" => $order_name,
             "sender_id" => $admin_id,
-            "receiver_id" => $supplier_id,
+            "receiver_id" => $selected_supplier,
             "sender_type" => "admin",
             "receiver_type" => "supplier",
             "total_amount" => $total,
@@ -348,20 +344,7 @@ include '../includes/admin_header.php';
                                         </td>
                                         <td><?= date('d/m/Y H:i', strtotime($order['created_at'])) ?></td>
                                         <td class="order-actions">
-                                            <?php if ($order['status'] === 'en attente'): ?>
-                                                <div class="btn-group">
-                                                    <a href="?action=update_status&order_id=<?= $order['id'] ?>&status=en cours" class="btn btn-sm btn-primary">
-                                                        Marquer en cours
-                                                    </a>
-                                                    <a href="?action=update_status&order_id=<?= $order['id'] ?>&status=terminée" class="btn btn-sm btn-success">
-                                                        Marquer terminée
-                                                    </a>
-                                                </div>
-                                            <?php elseif ($order['status'] === 'en cours'): ?>
-                                                <a href="?action=update_status&order_id=<?= $order['id'] ?>&status=terminée" class="btn btn-sm btn-success">
-                                                    Marquer terminée
-                                                </a>
-                                            <?php endif; ?>
+                                            
 
                                             <?php if ($order['status'] !== 'annulée'): ?>
                                                 <a href="?action=update_status&order_id=<?= $order['id'] ?>&status=annulée" class="btn btn-sm btn-danger">
@@ -500,24 +483,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (actionsCell) {
                 let buttonsHtml = '';
 
-                if (newStatus === 'en attente') {
-                    buttonsHtml += `
-                        <div class="btn-group">
-                            <a href="?action=update_status&order_id=${orderId}&status=en cours" class="btn btn-sm btn-primary">
-                                Marquer en cours
-                            </a>
-                            <a href="?action=update_status&order_id=${orderId}&status=terminée" class="btn btn-sm btn-success">
-                                Marquer terminée
-                            </a>
-                        </div>
-                    `;
-                } else if (newStatus === 'en cours') {
-                    buttonsHtml += `
-                        <a href="?action=update_status&order_id=${orderId}&status=terminée" class="btn btn-sm btn-success">
-                            Marquer terminée
-                        </a>
-                    `;
-                }
+                
 
                 if (newStatus !== 'annulée') {
                     buttonsHtml += `

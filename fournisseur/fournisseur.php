@@ -8,10 +8,15 @@ use Ratchet\Server\IoServer;
 use Ratchet\Http\HttpServer;
 use Ratchet\WebSocket\WsServer;
 
+if (!isLoggedIn() || $_SESSION['user_role'] !== 'supplier') {
+    redirect('../login_form.php');
+}
 $conn = connectDB();
 
 // Vérifier si l'utilisateur est un fournisseur
 $is_supplier = ($_SESSION['user_role'] === 'supplier');
+
+
 $supplier_id = 0;
 
 if ($is_supplier) {

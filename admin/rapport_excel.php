@@ -1,251 +1,101 @@
 <?php
-require '../config.php';
-require '../vendor/autoload.php';
+require __DIR__ . '/../vendor/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
-$conn = connectDB();
+// Charger le HTML
+ob_start();
+include 'rapport.php';
+$html = ob_get_clean();
 
-if ($_SESSION['user_role'] !== 'admin') {
-    header("Location: ../login.php");
-    exit;
+// Charger dans DOMDocument
+$dom = new DOMDocument();
+libxml_use_internal_errors(true);
+$dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+libxml_clear_errors();
+
+$xpath = new DOMXPath($dom);
+$tables = $xpath->query('//table');
+
+if ($tables->length === 0) {
+    die("Aucun tableau trouvé.");
 }
 
-// Fonctions
-function getValue($conn, $query) {
-    $res = $conn->query($query);
-    $row = $res->fetch_assoc();
-    return $row ? $row['total'] : 0;
-}
-
-function getTopProducts($conn) {
-    return $conn->query("SELECT p.name, SUM(oi.quantity) AS total_qte FROM order_items oi JOIN products p ON oi.product_id = p.id GROUP BY oi.product_id ORDER BY total_qte DESC LIMIT 10");
-}
-
-function getStockStatus($conn) {
-    return $conn->query("SELECT name, quantity, min_quantity FROM products ORDER BY name ASC");
-}
-
-function getClientOrders($conn) {
-    return $conn->query("
-        SELECT 
-            o.id, 
-            u.username, 
-            u.email, 
-            o.total_amount, 
-            o.created_at,
-            GROUP_CONCAT(CONCAT(p.name, ' (', oi.quantity, ' x ', oi.unit_price, '€)') SEPARATOR '\n') AS products_details,
-            GROUP_CONCAT(p.name SEPARATOR '\n') AS products,
-            GROUP_CONCAT(oi.quantity SEPARATOR '\n') AS quantities,
-            GROUP_CONCAT(oi.unit_price SEPARATOR '\n') AS unit_prices
-        FROM orders o
-        JOIN users u ON o.sender_id = u.id
-        JOIN order_items oi ON o.id = oi.order_id
-        JOIN products p ON oi.product_id = p.id
-        WHERE o.sender_type='user' AND o.receiver_type='admin'
-        GROUP BY o.id
-    ");
-}
-
-function getSupplierOrders($conn) {
-    return $conn->query("
-        SELECT 
-            o.id, 
-            s.name, 
-            o.total_amount, 
-            o.status, 
-            o.created_at,
-            GROUP_CONCAT(CONCAT(p.name, ' (', oi.quantity, ' x ', oi.unit_price, '€)') SEPARATOR '\n') AS products_details,
-            GROUP_CONCAT(p.name SEPARATOR '\n') AS products,
-            GROUP_CONCAT(oi.quantity SEPARATOR '\n') AS quantities,
-            GROUP_CONCAT(oi.unit_price SEPARATOR '\n') AS unit_prices
-        FROM orders o
-        JOIN suppliers s ON o.receiver_id = s.id
-        JOIN order_items oi ON o.id = oi.order_id
-        JOIN products p ON oi.product_id = p.id
-        WHERE o.sender_type='admin' AND o.receiver_type='supplier'
-        GROUP BY o.id
-    ");
-}
-
-// Données
-$revenus = getValue($conn, "SELECT SUM(total_amount) AS total FROM orders WHERE sender_type='user'");
-$depenses = getValue($conn, "SELECT SUM(total_amount) AS total FROM orders WHERE receiver_type='supplier'");
-$benefice = $revenus - $depenses;
-
-$clientOrders = getClientOrders($conn);
-$supplierOrders = getSupplierOrders($conn);
-$topProducts = getTopProducts($conn);
-$stockStatus = getStockStatus($conn);
-
-// Création Excel
 $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
-$row = 1;
+$currentRow = 1;
 
-// Styles
-$headerStyle = [
-    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '007BFF']],
-    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-];
+foreach ($tables as $table) {
+    // Récupérer le titre
+    $title = '';
+    $prev = $table->previousSibling;
+    while ($prev && !in_array($prev->nodeName, ['h1', 'h2', 'h3'])) {
+        $prev = $prev->previousSibling;
+    }
+    if ($prev) {
+        $title = trim($prev->textContent);
+    }
 
-$tableHeaderStyle = [
-    'font' => ['bold' => true],
-    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D9E1F2']],
-    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-];
+    // Afficher le titre
+    if ($title !== '') {
+        $sheet->setCellValue("A$currentRow", $title);
+        $sheet->mergeCells("A$currentRow:E$currentRow");
+        $sheet->getStyle("A$currentRow")->getFont()->setBold(true)->setSize(13);
+        $sheet->getStyle("A$currentRow")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $currentRow += 2;
+    }
 
-$borderStyle = ['borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]];
+    $rows = $table->getElementsByTagName('tr');
+    $firstDataRow = $currentRow;
+    $maxCol = 0;
 
-// Titre principal
-$sheet->setCellValue("A{$row}", "Rapport Complet des Transactions");
-$sheet->mergeCells("A{$row}:H{$row}");
-$sheet->getStyle("A{$row}")->applyFromArray([
-    'font' => ['bold' => true, 'size' => 16],
-    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
-]);
-$row += 2;
+    foreach ($rows as $rowIndex => $row) {
+        $isHeader = $row->getElementsByTagName('th')->length > 0;
+        $cells = $isHeader ? $row->getElementsByTagName('th') : $row->getElementsByTagName('td');
 
-// Statistiques
-$sheet->setCellValue("A{$row}", "Statistiques Générales");
-$sheet->getStyle("A{$row}")->applyFromArray($headerStyle);
-$sheet->mergeCells("A{$row}:H{$row}");
-$row++;
+        $colIndex = 1;
+        foreach ($cells as $cell) {
+            $colLetter = Coordinate::stringFromColumnIndex($colIndex);
+            $cellValue = trim($cell->textContent);
+            $cellAddress = "{$colLetter}{$currentRow}";
+            $sheet->setCellValue($cellAddress, $cellValue);
 
-$sheet->fromArray([
-    ['Revenus Totaux', number_format($revenus, 2) . ' €'],
-    ['Dépenses Totales', number_format($depenses, 2) . ' €'],
-    ['Bénéfice', number_format($benefice, 2) . ' €'],
-], NULL, "A{$row}");
-$sheet->getStyle("A{$row}:B" . ($row + 2))->applyFromArray($borderStyle);
-$row += 4;
+            // Centrer tout le texte
+            $sheet->getStyle($cellAddress)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-// Commandes Clients - Modifié pour inclure les produits
-$sheet->setCellValue("A{$row}", "Commandes Clients (Utilisateur → Admin)");
-$sheet->getStyle("A{$row}")->applyFromArray($headerStyle);
-$sheet->mergeCells("A{$row}:H{$row}");
-$row++;
+            // Style pour entête
+            if ($isHeader) {
+                $sheet->getStyle($cellAddress)->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+                $sheet->getStyle($cellAddress)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('007BFF');
+            }
 
-$sheet->fromArray([
-    'ID', 
-    'Utilisateur', 
-    'Email', 
-    'Produits', 
-    'Quantités', 
-    'Prix Unitaire', 
-    'Montant Total', 
-    'Date'
-], NULL, "A{$row}");
-$sheet->getStyle("A{$row}:H{$row}")->applyFromArray($tableHeaderStyle);
-$row++;
+            $colIndex++;
+        }
 
-while ($order = $clientOrders->fetch_assoc()) {
-    $sheet->fromArray([
-        $order['id'],
-        $order['username'],
-        $order['email'],
-        $order['products'],
-        $order['quantities'],
-        $order['unit_prices'],
-        number_format($order['total_amount'], 2) . ' €',
-        $order['created_at']
-    ], NULL, "A{$row}");
-    $sheet->getStyle("A{$row}:H{$row}")->applyFromArray($borderStyle);
-    $row++;
-}
-$row++;
+        $maxCol = max($maxCol, $colIndex - 1);
+        $currentRow++;
+    }
 
-// Commandes Fournisseurs - Modifié pour inclure les produits
-$sheet->setCellValue("A{$row}", "Commandes Fournisseurs (Admin → Fournisseur)");
-$sheet->getStyle("A{$row}")->applyFromArray($headerStyle);
-$sheet->mergeCells("A{$row}:H{$row}");
-$row++;
+    // Appliquer bordures au tableau
+    $endColLetter = Coordinate::stringFromColumnIndex($maxCol);
+    $range = "A$firstDataRow:{$endColLetter}" . ($currentRow - 1);
+    $sheet->getStyle($range)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-$sheet->fromArray([
-    'ID', 
-    'Fournisseur', 
-    'Produits', 
-    'Quantités', 
-    'Prix Unitaire', 
-    'Montant Total', 
-    'Status', 
-    'Date'
-], NULL, "A{$row}");
-$sheet->getStyle("A{$row}:H{$row}")->applyFromArray($tableHeaderStyle);
-$row++;
-
-while ($order = $supplierOrders->fetch_assoc()) {
-    $sheet->fromArray([
-        $order['id'],
-        $order['name'],
-        $order['products'],
-        $order['quantities'],
-        $order['unit_prices'],
-        number_format($order['total_amount'], 2) . ' €',
-        $order['status'],
-        $order['created_at']
-    ], NULL, "A{$row}");
-    $sheet->getStyle("A{$row}:H{$row}")->applyFromArray($borderStyle);
-    $row++;
-}
-$row++;
-
-// Top 10 Produits
-$sheet->setCellValue("A{$row}", "Top 10 des Produits Vendus");
-$sheet->getStyle("A{$row}")->applyFromArray($headerStyle);
-$sheet->mergeCells("A{$row}:B{$row}");
-$row++;
-
-$sheet->fromArray(['Produit', 'Quantité Vendue'], NULL, "A{$row}");
-$sheet->getStyle("A{$row}:B{$row}")->applyFromArray($tableHeaderStyle);
-$row++;
-
-while ($prod = $topProducts->fetch_assoc()) {
-    $sheet->fromArray([$prod['name'], $prod['total_qte']], NULL, "A{$row}");
-    $sheet->getStyle("A{$row}:B{$row}")->applyFromArray($borderStyle);
-    $row++;
-}
-$row++;
-
-// État des Stocks
-$sheet->setCellValue("A{$row}", "État des Stocks");
-$sheet->getStyle("A{$row}")->applyFromArray($headerStyle);
-$sheet->mergeCells("A{$row}:D{$row}");
-$row++;
-
-$sheet->fromArray(['Produit', 'Quantité Actuelle', 'Quantité Minimale', 'Statut'], NULL, "A{$row}");
-$sheet->getStyle("A{$row}:D{$row}")->applyFromArray($tableHeaderStyle);
-$row++;
-
-while ($stock = $stockStatus->fetch_assoc()) {
-    $statut = ($stock['quantity'] <= $stock['min_quantity']) ? 'Stock faible' : 'OK';
-    $sheet->fromArray([
-        $stock['name'],
-        $stock['quantity'],
-        $stock['min_quantity'],
-        $statut
-    ], NULL, "A{$row}");
-    $sheet->getStyle("A{$row}:D{$row}")->applyFromArray($borderStyle);
-    $row++;
+    // Laisser un espace entre les tableaux
+    $currentRow += 2;
 }
 
-// Ajustement automatique des colonnes
-foreach (range('A', 'H') as $col) {
-    $sheet->getColumnDimension($col)->setAutoSize(true);
-}
-
-// Export
+// Exporter le fichier
+$filename = "etat_stock_complet.xlsx";
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-header('Content-Disposition: attachment;filename="rapport_complet.xlsx"');
+header("Content-Disposition: attachment;filename=\"$filename\"");
 header('Cache-Control: max-age=0');
 
 $writer = new Xlsx($spreadsheet);
 $writer->save('php://output');
 exit;
-?>

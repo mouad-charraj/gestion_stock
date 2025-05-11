@@ -263,6 +263,7 @@ include '../includes/supplier_header.php';
 </div>
 
 <script>
+    const supplier_id = <?php echo $_SESSION['user_id']; ?>;
 function updateOrderStatus(orderId, newStatus) {
     if (!confirm(`Voulez-vous vraiment mettre cette commande en statut "${newStatus}"?`)) {
         return;
@@ -300,7 +301,7 @@ const socket = new WebSocket('ws://localhost:8080');
     const data = JSON.parse(event.data);
     console.log('Message received:', data);
 
-    if (data.type === "supplier_buyed" && data.content?.status === "en attente") {
+    if (data.type === "supplier_buyed" && data.content?.status === "en attente" && supplier_id == data.content.receiver_id) {
         const order = data.content;
 
         // Check if the order already exists

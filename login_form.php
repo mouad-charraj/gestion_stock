@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connexion - Gestion des Stocks</title>
+    <title>Connexion - StockFlow</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -83,6 +83,18 @@
             background-color: #fee2e2;
             color: #991b1b;
         }
+        
+        a.btn-link.text-decoration-none {
+            text-decoration: none !important;
+        }
+        a.btn-link.text-decoration-none:hover,
+        a.btn-link.text-decoration-none:focus,
+        a.btn-link.text-decoration-none:active,
+        a.btn-link.text-decoration-none:visited {
+            text-decoration: none !important;
+        }
+
+
     </style>
 </head>
 <body>
@@ -112,7 +124,10 @@
                 <div class="form-group">
                     <button type="submit" class="btn">Se connecter</button>
                 </div>
-                <p class="text-center">Pas encore de compte? <a href="signup_form.php">S'inscrire</a></p>
+                
+                <p class="text-center">Pas encore de compte? <a href="signup_form.php" class="btn btn-link text-decoration-none text-primary fw-semibold" style="padding: 0;">S'inscrire</a>
+
+                </p>
             </form>
         </div>
     </div>

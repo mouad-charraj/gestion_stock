@@ -139,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
-    <?php include 'includes/header.php'; ?>
+    
 
     <div class="container">
         <h1>Modifier la catégorie</h1>
@@ -164,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 
-    <?php include 'includes/footer.php'; ?>
+    
     <script src="../assets/js/script.js"></script>
 </body>
 </html>

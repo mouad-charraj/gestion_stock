@@ -105,7 +105,7 @@ $low_stock_query = $conn->query("
         s.name AS supplier_name
     FROM products p
     JOIN suppliers s ON p.supplier_id = s.id
-    WHERE p.quantity <= 5
+    WHERE p.quantity <= min_quantity
     ORDER BY p.quantity ASC
     LIMIT 5
 ");

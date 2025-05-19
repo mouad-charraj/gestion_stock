@@ -28,6 +28,8 @@ if (isset($_POST['delete_product']) && isset($_POST['product_id'])) {
     if ($stmt->execute()) {
         $_SESSION['message'] = "L'article a été supprimé avec succès.";
         $_SESSION['message_type'] = "success";
+
+        
         $message = json_encode([
             'type' => 'product_deleted',
             'product_id' => $product_id,

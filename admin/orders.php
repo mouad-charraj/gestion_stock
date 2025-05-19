@@ -445,6 +445,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
   const socket = new WebSocket('ws://localhost:8080');
 
   socket.onopen = function() {
@@ -461,7 +462,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const row = document.getElementById(`order-${orderId}`);
         if (row) {
-            const statusCell = row.querySelector('.order-status');
+            const statusCell = row.querySelector('.order-actions');
             if (statusCell) {
                 let badgeClass = 'bg-warning text-dark'; // default
                 if (newStatus === 'en attente') {

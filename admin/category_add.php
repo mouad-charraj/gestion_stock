@@ -36,17 +36,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 
 <!DOCTYPE html>
+
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ajouter une catégorie - Système de Gestion des Stocks</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -120,9 +117,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             background-color: #218838;
         }
     </style>
+    
 </head>
+
 <body>
-    <?php include 'includes/header.php'; ?>
+   
 
     <div class="container">
         <h1>Ajouter une catégorie</h1>

@@ -5,8 +5,8 @@ require_once '../config.php';// Assure-toi que $conn est bien défini ici
 $low_stock_popup_querys = $conn->query("SELECT name, quantity, id FROM products WHERE quantity <= min_quantity");
 $low_stock_products = [];
 if ($low_stock_popup_querys && $low_stock_popup_querys->num_rows > 0) {
-    while ($product = $low_stock_popup_querys->fetch_assoc()) {
-        $low_stock_products[] = $product;
+    while ($productHeader = $low_stock_popup_querys->fetch_assoc()) {
+        $low_stock_products[] = $productHeader;
     }
 }
 ?>
@@ -83,11 +83,11 @@ if ($low_stock_popup_querys && $low_stock_popup_querys->num_rows > 0) {
                         <li class="dropdown-header fw-bold">Produits en stock critique</li>
                         <li><hr class="dropdown-divider"></li>
                         <?php if (count($low_stock_products) > 0): ?>
-                            <?php foreach ($low_stock_products as $product): ?>
-                                <li id="product-risk-<?= htmlspecialchars($product['id']) ?>" class="dropdown-menu-notification-risk">
+                            <?php foreach ($low_stock_products as $productHeader): ?>
+                                <li id="product-risk-<?= htmlspecialchars($productHeader['id']) ?>" class="dropdown-menu-notification-risk">
                                     <a class="dropdown-item d-flex justify-content-between" href="products.php">
-                                        <?= htmlspecialchars($product['name']) ?>
-                                        <span class="badge bg-danger"><?= $product['quantity'] ?></span>
+                                        <?= htmlspecialchars($productHeader['name']) ?>
+                                        <span class="badge bg-danger"><?= $productHeader['quantity'] ?></span>
                                     </a>
                                 </li>
                             <?php endforeach; ?>
